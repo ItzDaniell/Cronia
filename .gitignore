@@ -1,52 +1,25 @@
-# Build results
-[Dd]ebug/
-[Dd]ebugPublic/
-[Rr]elease/
-[Rr]eleases/
-x64/
-x86/
-[Ww][Ii][Nn]32/
-[Aa][Rr][Mm]/
-[Aa][Rr][Mm]64/
-bld/
-[Bb]in/
-[Oo]bj/
-[Ll]og/
-[Ll]ogs/
+node_modules/
+dist/
+build/
+.cache/
+.env*
+.vite/
+vite.config.*.timestamp-*
+*.tsbuildinfo
+*-debug.log*
+logs/
+*.log
+.claude-replay.*
+.tmp-*
+/.figma/design-context/
 
-# Visual Studio / IDE
-.vs/
-.vscode/
-.idea/
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-*.DotSettings.user
+# Platform-managed agentplat state, not project source. In the
+# client-initiated single-repo workspace layout (make's `Path: "."` spec) the
+# repo root IS the workspace root, so these land inside this repo rather than
+# beside it.
+/.plugins/
+/.opencode-skills/
 
-# NuGet
-*.nupkg
-*.snupkg
-packages/
-project.lock.json
-project.fragment.lock.json
-artifacts/
-
-# Test results
-[Tt]est[Rr]esult*/
-[Bb]uild[Ll]og.*
-*.trx
-*.coverage
-*.coveragexml
-
-# SQLite local databases
-*.db
-*.db-shm
-*.db-wal
-*.sqlite
-*.sqlite3
-
-# OS files
-Thumbs.db
-desktop.ini
-.DS_Store
+# Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/
