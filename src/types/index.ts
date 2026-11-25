@@ -102,3 +102,12 @@ export interface UserSettings {
   firstDayOfWeek: 'Lunes' | 'Domingo';
   language: 'Español' | 'English';
 }
+
+export interface AppData {
+  settings: UserSettings;
+  tasks: Task[];
+  projects: Project[];
+  events: CalendarEvent[];
+  reminders: Reminder[];
+  sessions: FocusSession[];
+}

@@ -1,3 +1,10 @@
+mod commands;
+mod db;
+
+use db::DbState;
+use std::sync::Mutex;
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -9,8 +16,30 @@ pub fn run() {
             .build(),
         )?;
       }
+
+      let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("No se pudo resolver app_data_dir: {e}"))?;
+      let db_path = data_dir.join("cronia.db");
+      let conn = db::open_db(&db_path)?;
+      app.manage(DbState(Mutex::new(conn)));
+
       Ok(())
     })
+    .invoke_handler(tauri::generate_handler![
+      commands::app::load_app_data,
+      commands::app::reset_all_data,
+      commands::settings::save_settings,
+      commands::tasks::upsert_task,
+      commands::tasks::delete_task,
+      commands::projects::upsert_project,
+      commands::events::upsert_event,
+      commands::events::delete_event,
+      commands::reminders::upsert_reminder,
+      commands::reminders::delete_reminder,
+      commands::sessions::upsert_focus_session,
+    ])
     .run(tauri::generate_context!())
     .expect("error while building tauri application");
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  AppData,
   CalendarEvent,
   FocusSession,
   ModuleName,
@@ -19,7 +20,7 @@ import {
   PAGE_DESCRIPTIONS,
   WEEK_DAYS_DEFAULT,
 } from './data/initialData';
-import { useLocalStorage } from './hooks/useLocalStorage';
+import { persistence } from './services/persistence';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Icon } from './components/ui/Icon';
@@ -34,13 +35,22 @@ import { FocusPage } from './pages/FocusPage';
 import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
 
+const DEFAULT_APP_DATA: AppData = {
+  settings: DEFAULT_SETTINGS,
+  tasks: INITIAL_TASKS,
+  projects: INITIAL_PROJECTS,
+  events: INITIAL_EVENTS,
+  reminders: INITIAL_REMINDERS,
+  sessions: INITIAL_FOCUS_SESSIONS,
+};
+
 export default function App() {
-  const [settings, setSettings] = useLocalStorage<UserSettings>('cronia.settings', DEFAULT_SETTINGS);
-  const [tasks, setTasks] = useLocalStorage<Task[]>('cronia.tasks', INITIAL_TASKS);
-  const [projects, setProjects] = useLocalStorage<Project[]>('cronia.projects', INITIAL_PROJECTS);
-  const [events, setEvents] = useLocalStorage<CalendarEvent[]>('cronia.events', INITIAL_EVENTS);
-  const [reminders, setReminders] = useLocalStorage<Reminder[]>('cronia.reminders', INITIAL_REMINDERS);
-  const [sessions, setSessions] = useLocalStorage<FocusSession[]>('cronia.sessions', INITIAL_FOCUS_SESSIONS);
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const [events, setEvents] = useState<CalendarEvent[]>(INITIAL_EVENTS);
+  const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
+  const [sessions, setSessions] = useState<FocusSession[]>(INITIAL_FOCUS_SESSIONS);
 
   const [active, setActive] = useState<ModuleName>('Dashboard');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -51,6 +61,40 @@ export default function App() {
   const [now, setNow] = useState(new Date());
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const notify = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(''), 2600);
+  };
+
+  const persistAsync = (op: Promise<unknown>) => {
+    op.catch((err) => {
+      console.error('Error de persistencia:', err);
+      notify('No se pudo guardar en la base de datos local');
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    persistence
+      .loadAppData(DEFAULT_APP_DATA)
+      .then((data) => {
+        if (cancelled) return;
+        setSettings(data.settings);
+        setTasks(data.tasks);
+        setProjects(data.projects);
+        setEvents(data.events);
+        setReminders(data.reminders);
+        setSessions(data.sessions);
+      })
+      .catch((err) => {
+        console.error('Error al cargar datos locales:', err);
+        if (!cancelled) notify('No se pudieron cargar los datos locales');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.dark);
@@ -79,81 +123,102 @@ export default function App() {
     return () => window.removeEventListener('keydown', shortcut);
   }, []);
 
-  const notify = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(''), 2600);
-  };
-
   const openModule = (name: ModuleName) => {
     setActive(name);
     setMenuOpen(false);
   };
 
   const updateSettings = (partial: Partial<UserSettings>) => {
-    setSettings((prev) => ({ ...prev, ...partial }));
+    const next = { ...settings, ...partial };
+    setSettings(next);
+    persistAsync(persistence.saveSettings(next));
   };
 
   const handleToggleTask = (id: number) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === id
-          ? { ...task, done: !task.done, status: !task.done ? 'Completada' : 'Pendiente' }
-          : task,
-      ),
-    );
+    const current = tasks.find((task) => task.id === id);
+    if (!current) return;
+    const updated: Task = {
+      ...current,
+      done: !current.done,
+      status: !current.done ? 'Completada' : 'Pendiente',
+    };
+    setTasks((prev) => prev.map((task) => (task.id === id ? updated : task)));
+    persistAsync(persistence.upsertTask(updated));
   };
 
   const handleDeleteTask = (id: number) => {
     setTasks((prev) => prev.filter((task) => task.id !== id));
+    persistAsync(persistence.deleteTask(id));
     notify('Tarea eliminada');
   };
 
   const handleCreateTask = (draft: Omit<Task, 'id'>) => {
-    setTasks((prev) => [{ id: Date.now(), ...draft }, ...prev]);
+    const created: Task = { id: Date.now(), ...draft };
+    setTasks((prev) => [created, ...prev]);
     setModalOpen(false);
+    persistAsync(persistence.upsertTask(created));
     notify('La tarea se creó correctamente');
   };
 
   const handleCreateProject = (name: string, desc: string) => {
-    setProjects((prev) => [
-      ...prev,
-      { id: Date.now(), name, desc, color: 'violet', done: 0, total: 1, date: 'Sin fecha', archived: false },
-    ]);
+    const created: Project = {
+      id: Date.now(),
+      name,
+      desc,
+      color: 'violet',
+      done: 0,
+      total: 1,
+      date: 'Sin fecha',
+      archived: false,
+    };
+    setProjects((prev) => [...prev, created]);
+    persistAsync(persistence.upsertProject(created));
     notify('Nuevo proyecto creado');
   };
 
   const handleToggleArchiveProject = (id: number) => {
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        notify(p.archived ? 'Proyecto restaurado' : 'Proyecto archivado');
-        return { ...p, archived: !p.archived };
-      }),
-    );
+    const current = projects.find((p) => p.id === id);
+    if (!current) return;
+    const updated: Project = { ...current, archived: !current.archived };
+    setProjects((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    persistAsync(persistence.upsertProject(updated));
+    notify(current.archived ? 'Proyecto restaurado' : 'Proyecto archivado');
   };
 
   const handleSaveReminder = (reminder: Reminder, isNew: boolean) => {
     setReminders((prev) =>
       isNew ? [...prev, reminder] : prev.map((item) => (item.id === reminder.id ? reminder : item)),
     );
+    persistAsync(persistence.upsertReminder(reminder));
     notify(isNew ? 'Recordatorio programado' : 'Recordatorio actualizado');
   };
 
   const handleToggleReminder = (id: number) => {
-    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));
+    const current = reminders.find((r) => r.id === id);
+    if (!current) return;
+    const updated: Reminder = { ...current, enabled: !current.enabled };
+    setReminders((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    persistAsync(persistence.upsertReminder(updated));
   };
 
   const handleDeleteReminder = (id: number) => {
     setReminders((prev) => prev.filter((r) => r.id !== id));
+    persistAsync(persistence.deleteReminder(id));
     notify('Recordatorio cancelado');
   };
 
   const handleCompleteSession = (taskTitle: string, durationMinutes: number) => {
     const completedAt = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date());
-    setSessions((prev) => [
-      { id: Date.now(), taskTitle, durationMinutes, completedAt, completionRate: 100, color: 'violet' },
-      ...prev,
-    ]);
+    const created: FocusSession = {
+      id: Date.now(),
+      taskTitle,
+      durationMinutes,
+      completedAt,
+      completionRate: 100,
+      color: 'violet',
+    };
+    setSessions((prev) => [created, ...prev]);
+    persistAsync(persistence.upsertFocusSession(created));
     notify('Sesión registrada en el historial');
   };
 
@@ -164,6 +229,7 @@ export default function App() {
     setReminders(INITIAL_REMINDERS);
     setSessions(INITIAL_FOCUS_SESSIONS);
     setSettings(DEFAULT_SETTINGS);
+    persistAsync(persistence.resetAllData(DEFAULT_APP_DATA));
     notify('Datos locales restablecidos');
   };
 
@@ -220,15 +286,19 @@ export default function App() {
           <CalendarPage
             events={events}
             onAddEvent={(ev) => {
-              setEvents((prev) => [...prev, { id: Date.now(), ...ev }]);
+              const created: CalendarEvent = { id: Date.now(), ...ev };
+              setEvents((prev) => [...prev, created]);
+              persistAsync(persistence.upsertEvent(created));
               notify('Evento añadido al calendario');
             }}
             onUpdateEvent={(updated) => {
               setEvents((prev) => prev.map((ev) => (ev.id === updated.id ? updated : ev)));
+              persistAsync(persistence.upsertEvent(updated));
               notify('Cambios del evento guardados');
             }}
             onDeleteEvent={(id) => {
               setEvents((prev) => prev.filter((ev) => ev.id !== id));
+              persistAsync(persistence.deleteEvent(id));
               notify('Evento eliminado del calendario');
             }}
           />
