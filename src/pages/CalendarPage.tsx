@@ -71,15 +71,18 @@ export function CalendarPage({ events, onAddEvent, onUpdateEvent, onDeleteEvent 
           <button
             type="button"
             className="calendar-add"
-            onClick={() =>
+            onClick={() => {
+              const targetDay = isCurrentMonth ? today.getDate() : 1;
+              const dateKey = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
               onAddEvent({
-                day: today.getDate(),
+                day: targetDay,
+                date: dateKey,
                 title: 'Nueva actividad',
                 type: 'Trabajo',
                 color: 'violet',
                 time: '10:00',
-              })
-            }
+              });
+            }}
           >
             <Icon name="plus" />
             Evento
@@ -109,7 +112,10 @@ export function CalendarPage({ events, onAddEvent, onUpdateEvent, onDeleteEvent 
                   {day > 0 &&
                     day <= daysInMonth &&
                     shownEvents
-                      .filter((event) => event.day === day)
+                      .filter((event) => {
+                        const cellDate = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        return event.date ? event.date === cellDate : event.day === day;
+                      })
                       .map((event) => (
                         <button
                           type="button"

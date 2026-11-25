@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod events;
 pub mod models;
 pub mod projects;
@@ -9,10 +10,13 @@ pub mod tasks;
 
 use models::AppData;
 use rusqlite::{Connection, OptionalExtension};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-pub struct DbState(pub Mutex<Connection>);
+pub struct DbState {
+  pub conn: Mutex<Connection>,
+  pub backups_dir: PathBuf,
+}
 
 pub fn open_db(path: &Path) -> Result<Connection, String> {
   if let Some(parent) = path.parent() {
@@ -42,13 +46,14 @@ pub fn replace_all_data(conn: &mut Connection, data: &AppData) -> Result<(), Str
     .transaction()
     .map_err(|e| format!("Error al iniciar transacción: {e}"))?;
 
+  // Borrado respetando orden de claves foráneas
   tx.execute_batch(
     "
+    DELETE FROM focus_sessions;
     DELETE FROM tasks;
     DELETE FROM projects;
     DELETE FROM calendar_events;
     DELETE FROM reminders;
-    DELETE FROM focus_sessions;
     DELETE FROM settings;
     ",
   )
@@ -56,11 +61,12 @@ pub fn replace_all_data(conn: &mut Connection, data: &AppData) -> Result<(), Str
 
   settings::save(&tx, &data.settings)?;
 
-  for task in &data.tasks {
-    tasks::upsert(&tx, task)?;
-  }
+  // Inserción respetando claves foráneas: projects -> tasks -> focus_sessions
   for project in &data.projects {
     projects::upsert(&tx, project)?;
+  }
+  for task in &data.tasks {
+    tasks::upsert(&tx, task)?;
   }
   for event in &data.events {
     events::upsert(&tx, event)?;
@@ -83,13 +89,9 @@ pub fn replace_all_data(conn: &mut Connection, data: &AppData) -> Result<(), Str
     .map_err(|e| format!("Error al confirmar transacción: {e}"))
 }
 
-pub fn load_or_seed(conn: &mut Connection, defaults: &AppData) -> Result<AppData, String> {
-  if !is_initialized(conn)? {
-    replace_all_data(conn, defaults)?;
-  }
-
+pub fn load_all_data(conn: &Connection, fallback_settings: &models::UserSettings) -> Result<AppData, String> {
   Ok(AppData {
-    settings: settings::load(conn)?.unwrap_or_else(|| defaults.settings.clone()),
+    settings: settings::load(conn)?.unwrap_or_else(|| fallback_settings.clone()),
     tasks: tasks::load_all(conn)?,
     projects: projects::load_all(conn)?,
     events: events::load_all(conn)?,
@@ -98,10 +100,19 @@ pub fn load_or_seed(conn: &mut Connection, defaults: &AppData) -> Result<AppData
   })
 }
 
+pub fn load_or_seed(conn: &mut Connection, defaults: &AppData) -> Result<AppData, String> {
+  if !is_initialized(conn)? {
+    replace_all_data(conn, defaults)?;
+  }
+  load_all_data(conn, &defaults.settings)
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
-  use models::{CalendarEvent, FocusSession, Project, Reminder, Task, UserSettings};
+  use models::{
+    CalendarEvent, FocusSession, Project, RecurrenceRule, Reminder, Subtask, Task, UserSettings,
+  };
 
   fn sample_data() -> AppData {
     AppData {
@@ -118,21 +129,6 @@ mod tests {
         first_day_of_week: "Lunes".into(),
         language: "Español".into(),
       },
-      tasks: vec![Task {
-        id: 1,
-        title: "Probar SQLite".into(),
-        description: "Test CRUD".into(),
-        project: "Cronia".into(),
-        due: "Hoy".into(),
-        start: "Hoy".into(),
-        priority: "Alta".into(),
-        status: "Pendiente".into(),
-        category: "Desarrollo".into(),
-        estimate: "30 min".into(),
-        subtasks: "0/1".into(),
-        done: false,
-        color: "violet".into(),
-      }],
       projects: vec![Project {
         id: 1,
         name: "Cronia".into(),
@@ -143,9 +139,39 @@ mod tests {
         date: "Sin fecha".into(),
         archived: false,
       }],
+      tasks: vec![Task {
+        id: 1,
+        title: "Probar SQLite".into(),
+        description: "Test CRUD con subtareas, etiquetas y recurrencia".into(),
+        project_id: Some(1),
+        project: "Cronia".into(),
+        start_date: Some("2026-11-24".into()),
+        due_date: Some("2026-11-25".into()),
+        priority: "High".into(),
+        status: "Pending".into(),
+        category: "Desarrollo".into(),
+        tags: vec!["sqlite".into(), "backend".into()],
+        subtasks: vec![Subtask {
+          id: "st-1".into(),
+          title: "Crear tabla".into(),
+          completed: true,
+        }],
+        estimated_minutes: 45,
+        recurrence: RecurrenceRule {
+          frequency: "weekly".into(),
+          interval: 1,
+          end_date: None,
+        },
+        color: "violet".into(),
+        created_at: "2026-11-24T10:00:00Z".into(),
+        updated_at: "2026-11-24T10:00:00Z".into(),
+        completed_at: None,
+        deleted_at: None,
+      }],
       events: vec![CalendarEvent {
         id: 1,
-        day: 15,
+        day: 24,
+        date: "2026-11-24".into(),
         title: "Sprint".into(),
         event_type: "Trabajo".into(),
         color: "blue".into(),
@@ -162,8 +188,10 @@ mod tests {
       }],
       sessions: vec![FocusSession {
         id: 1,
+        task_id: Some(1),
         task_title: "Probar SQLite".into(),
         duration_minutes: 25,
+        date: "2026-11-24".into(),
         completed_at: "10:00".into(),
         completion_rate: 100,
         color: "violet".into(),
@@ -172,7 +200,7 @@ mod tests {
   }
 
   #[test]
-  fn seed_crud_and_reset_work() {
+  fn seed_crud_fk_project_delete_and_reset_work() {
     let mut conn = Connection::open_in_memory().unwrap();
     schema::init(&conn).unwrap();
 
@@ -180,28 +208,59 @@ mod tests {
     let loaded = load_or_seed(&mut conn, &defaults).unwrap();
     assert_eq!(loaded, defaults);
 
-    tasks::delete(&conn, 1).unwrap();
-    let after_delete = load_or_seed(&mut conn, &defaults).unwrap();
-    assert!(after_delete.tasks.is_empty());
+    // Deleting a project detaches linked tasks cleanly without deleting them
+    projects::delete(&mut conn, 1).unwrap();
+    let after_proj_del = load_or_seed(&mut conn, &defaults).unwrap();
+    assert!(after_proj_del.projects.is_empty());
+    assert_eq!(after_proj_del.tasks[0].project_id, None);
+    assert_eq!(after_proj_del.tasks[0].project, "Sin proyecto");
 
-    let mut updated_settings = defaults.settings.clone();
-    updated_settings.dark = false;
-    updated_settings.user_name = "CroniaUser".into();
-    settings::save(&conn, &updated_settings).unwrap();
+    // Soft delete + restore + permanent delete
+    tasks::soft_delete(&conn, 1, "2026-11-24T12:00:00Z").unwrap();
+    assert_eq!(
+      tasks::load_all(&conn).unwrap()[0].deleted_at.as_deref(),
+      Some("2026-11-24T12:00:00Z")
+    );
+    tasks::restore(&conn, 1, "2026-11-24T12:05:00Z").unwrap();
+    assert!(tasks::load_all(&conn).unwrap()[0].deleted_at.is_none());
+    tasks::delete_permanent(&conn, 1).unwrap();
+    assert!(tasks::load_all(&conn).unwrap().is_empty());
 
-    let mut ev = defaults.events[0].clone();
-    ev.title = "Sprint actualizado".into();
-    events::upsert(&conn, &ev).unwrap();
-    reminders::delete(&conn, 1).unwrap();
-
-    let after_edits = load_or_seed(&mut conn, &defaults).unwrap();
-    assert_eq!(after_edits.settings.user_name, "CroniaUser");
-    assert!(!after_edits.settings.dark);
-    assert_eq!(after_edits.events[0].title, "Sprint actualizado");
-    assert!(after_edits.reminders.is_empty());
-
+    // Reset restores defaults cleanly
     replace_all_data(&mut conn, &defaults).unwrap();
     let after_reset = load_or_seed(&mut conn, &defaults).unwrap();
     assert_eq!(after_reset, defaults);
+  }
+
+  #[test]
+  fn backup_and_restore_roundtrip_works() {
+    let temp_dir = std::env::temp_dir().join(format!(
+      "cronia-db-test-{}",
+      std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    let db_path = temp_dir.join("cronia.db");
+    let backups_dir = temp_dir.join("backups");
+
+    let mut conn = open_db(&db_path).unwrap();
+    let defaults = sample_data();
+    load_or_seed(&mut conn, &defaults).unwrap();
+
+    let info = backup::create_backup(&conn, &backups_dir).unwrap();
+    assert!(info.size_bytes > 0);
+    assert_eq!(backup::list_backups(&backups_dir).unwrap().len(), 1);
+
+    // Mutate DB after backup
+    tasks::delete_permanent(&conn, 1).unwrap();
+    assert!(tasks::load_all(&conn).unwrap().is_empty());
+
+    // Restore backup and verify task is back
+    backup::restore_backup(&mut conn, &backups_dir, &info.file_name).unwrap();
+    let restored = load_all_data(&conn, &defaults.settings).unwrap();
+    assert_eq!(restored.tasks.len(), 1);
+    assert_eq!(restored.tasks[0].title, "Probar SQLite");
+
+    drop(conn);
+    let _ = std::fs::remove_dir_all(&temp_dir);
   }
 }

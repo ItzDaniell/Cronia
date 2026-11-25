@@ -4,7 +4,7 @@ use tauri::State;
 #[tauri::command]
 pub fn save_settings(state: State<'_, DbState>, settings: UserSettings) -> Result<(), String> {
   let conn = state
-    .0
+    .conn
     .lock()
     .map_err(|_| "Error al adquirir bloqueo de la base de datos".to_string())?;
   db::settings::save(&conn, &settings)

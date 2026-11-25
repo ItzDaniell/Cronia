@@ -4,7 +4,7 @@ use tauri::State;
 #[tauri::command]
 pub fn load_app_data(state: State<'_, DbState>, defaults: AppData) -> Result<AppData, String> {
   let mut conn = state
-    .0
+    .conn
     .lock()
     .map_err(|_| "Error al adquirir bloqueo de la base de datos".to_string())?;
   db::load_or_seed(&mut conn, &defaults)
@@ -13,7 +13,7 @@ pub fn load_app_data(state: State<'_, DbState>, defaults: AppData) -> Result<App
 #[tauri::command]
 pub fn reset_all_data(state: State<'_, DbState>, defaults: AppData) -> Result<AppData, String> {
   let mut conn = state
-    .0
+    .conn
     .lock()
     .map_err(|_| "Error al adquirir bloqueo de la base de datos".to_string())?;
   db::replace_all_data(&mut conn, &defaults)?;

@@ -7,7 +7,7 @@ pub fn upsert_focus_session(
   session: FocusSession,
 ) -> Result<(), String> {
   let conn = state
-    .0
+    .conn
     .lock()
     .map_err(|_| "Error al adquirir bloqueo de la base de datos".to_string())?;
   db::sessions::upsert(&conn, &session)

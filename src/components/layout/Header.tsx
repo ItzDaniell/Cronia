@@ -1,5 +1,6 @@
 import type { RefObject } from 'react';
 import type { IconName, ModuleName, ModuleNavItem, Project, Task } from '../../types';
+import { STATUS_LABELS } from '../../modules/tasks/domain/rules';
 import { Icon } from '../ui/Icon';
 
 interface SearchResult {
@@ -43,10 +44,12 @@ export function Header({
           .filter((item) => item.name.toLowerCase().includes(q))
           .map((item) => ({ label: item.name, meta: 'Módulo', module: item.name, icon: item.icon })),
         ...tasks
-          .filter((task) => `${task.title} ${task.project} ${task.category}`.toLowerCase().includes(q))
+          .filter((task) =>
+            `${task.title} ${task.project} ${task.category} ${task.tags.join(' ')}`.toLowerCase().includes(q),
+          )
           .map((task) => ({
             label: task.title,
-            meta: `${task.project} · ${task.status}`,
+            meta: `${task.project} · ${STATUS_LABELS[task.status]}`,
             module: 'Tareas' as ModuleName,
             icon: 'check' as IconName,
           })),

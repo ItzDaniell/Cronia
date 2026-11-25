@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FocusSession, Task } from '../types';
+import { isTaskCompleted } from '../modules/tasks/domain/rules';
 import { Icon } from '../components/ui/Icon';
 import { PanelHeading } from '../components/ui/PanelHeading';
 
@@ -25,7 +26,7 @@ export function FocusPage({
   onNotify,
 }: FocusPageProps) {
   const [phase, setPhase] = useState<'Enfoque' | 'Descanso corto' | 'Descanso largo'>('Enfoque');
-  const [selectedTask, setSelectedTask] = useState(tasks.find((t) => !t.done)?.title ?? 'Sin tarea asociada');
+  const [selectedTask, setSelectedTask] = useState(tasks.find((t) => !isTaskCompleted(t))?.title ?? 'Sin tarea asociada');
   const [work, setWork] = useState(25);
 
   const durations = { Enfoque: work, 'Descanso corto': 5, 'Descanso largo': 15 };

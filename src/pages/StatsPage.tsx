@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FocusSession, Project, Task, WeekDayStat } from '../types';
+import { isTaskCompleted } from '../modules/tasks/domain/rules';
 import { Icon } from '../components/ui/Icon';
 import { MetricCard } from '../components/ui/MetricCard';
 import { PanelHeading } from '../components/ui/PanelHeading';
@@ -20,13 +21,13 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
   const focusHours = Math.floor(totalFocusMins / 60);
   const focusMins = totalFocusMins % 60;
 
-  const completedTasks = tasks.filter((t) => t.done).length;
+  const completedTasks = tasks.filter((t) => isTaskCompleted(t)).length;
   const completionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
 
-  const urgentCount = tasks.filter((t) => t.priority === 'Urgente').length;
-  const highCount = tasks.filter((t) => t.priority === 'Alta').length;
-  const medCount = tasks.filter((t) => t.priority === 'Media').length;
-  const lowCount = tasks.filter((t) => t.priority === 'Baja').length;
+  const urgentCount = tasks.filter((t) => t.priority === 'Urgent').length;
+  const highCount = tasks.filter((t) => t.priority === 'High').length;
+  const medCount = tasks.filter((t) => t.priority === 'Medium').length;
+  const lowCount = tasks.filter((t) => t.priority === 'Low').length;
   const maxPriority = Math.max(1, urgentCount, highCount, medCount, lowCount);
 
   const activeProjects = projects.filter((p) => !p.archived);

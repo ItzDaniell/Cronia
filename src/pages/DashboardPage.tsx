@@ -1,4 +1,5 @@
 import type { CalendarEvent, ModuleName, Project, Task, WeekDayStat } from '../types';
+import { isTaskCompleted, isTaskDueToday, isTaskOverdue } from '../modules/tasks/domain/rules';
 import { Icon } from '../components/ui/Icon';
 import { MetricCard } from '../components/ui/MetricCard';
 import { PanelHeading } from '../components/ui/PanelHeading';
@@ -42,9 +43,10 @@ export function DashboardPage({
     minute: '2-digit',
   }).format(now);
 
-  const completed = tasks.filter((t) => t.done).length;
-  const pending = tasks.length - completed;
-  const overdue = tasks.filter((t) => !t.done && t.status === 'Vencida').length;
+  const completed = tasks.filter((t) => isTaskCompleted(t)).length;
+  const pending = tasks.filter((t) => t.status === 'Pending' || t.status === 'InProgress').length;
+  const overdue = tasks.filter((t) => isTaskOverdue(t)).length;
+  const dueTodayCount = tasks.filter((t) => !isTaskCompleted(t) && isTaskDueToday(t)).length;
   const progress = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
   const activeProjects = projects.filter((p) => !p.archived);
   const todayEvents = events.slice(0, 3);
@@ -71,7 +73,7 @@ export function DashboardPage({
       </section>
 
       <section className="metric-row dashboard-metrics">
-        <MetricCard icon="list" tone="violet" label="Pendientes" value={pending} note={`${tasks.filter((t) => !t.done && t.due.includes('Hoy')).length} para hoy`} />
+        <MetricCard icon="list" tone="violet" label="Pendientes" value={pending} note={`${dueTodayCount} para hoy`} />
         <MetricCard icon="check" tone="green" label="Completadas" value={completed} note={`De ${tasks.length} totales`} />
         <MetricCard icon="flag" tone="orange" label="Vencidas" value={overdue} note={overdue > 0 ? 'Requiere atención' : 'Todo al día'} />
         <MetricCard icon="target" tone="blue" label="Progreso diario" value={`${progress}%`} note="Meta: 100%" />

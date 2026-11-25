@@ -56,3 +56,21 @@ pub fn upsert(conn: &Connection, p: &Project) -> Result<(), String> {
     .map_err(|e| format!("Error al guardar proyecto: {e}"))?;
   Ok(())
 }
+
+pub fn delete(conn: &mut Connection, id: i64) -> Result<(), String> {
+  let tx = conn
+    .transaction()
+    .map_err(|e| format!("Error al iniciar transacción de borrado de proyecto: {e}"))?;
+
+  tx.execute(
+    "UPDATE tasks SET project_id = NULL, project = 'Sin proyecto' WHERE project_id = ?1",
+    params![id],
+  )
+  .map_err(|e| format!("Error al desvincular tareas del proyecto: {e}"))?;
+
+  tx.execute("DELETE FROM projects WHERE id = ?1", params![id])
+    .map_err(|e| format!("Error al eliminar proyecto: {e}"))?;
+
+  tx.commit()
+    .map_err(|e| format!("Error al confirmar borrado de proyecto: {e}"))
+}

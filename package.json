@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "test": "node --test src/modules/tasks/__tests__/tasks.test.ts",
     "format": "oxfmt"
   },
   "dependencies": {

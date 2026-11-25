@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AppData,
+  BackupInfo,
   CalendarEvent,
   FocusSession,
   ModuleName,
@@ -21,6 +22,10 @@ import {
   WEEK_DAYS_DEFAULT,
 } from './data/initialData';
 import { persistence } from './services/persistence';
+import { taskService, TaskValidationError } from './modules/tasks/application/taskService';
+import type { CreateTaskDto, UpdateTaskDto } from './modules/tasks/application/dtos';
+import { isTaskCompleted, isTaskDeleted, toLocalDateKey } from './modules/tasks/domain/rules';
+import type { TaskStatus } from './types';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Icon } from './components/ui/Icon';
@@ -51,10 +56,13 @@ export default function App() {
   const [events, setEvents] = useState<CalendarEvent[]>(INITIAL_EVENTS);
   const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
   const [sessions, setSessions] = useState<FocusSession[]>(INITIAL_FOCUS_SESSIONS);
+  const [backups, setBackups] = useState<BackupInfo[]>([]);
 
   const [active, setActive] = useState<ModuleName>('Dashboard');
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [modalInitialStatus, setModalInitialStatus] = useState<TaskStatus>('Pending');
   const [toast, setToast] = useState('');
   const [timerRunning, setTimerRunning] = useState(false);
   const [seconds, setSeconds] = useState(25 * 60);
@@ -91,6 +99,12 @@ export default function App() {
         console.error('Error al cargar datos locales:', err);
         if (!cancelled) notify('No se pudieron cargar los datos locales');
       });
+    persistence
+      .listBackups()
+      .then((items) => {
+        if (!cancelled) setBackups(items);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -134,30 +148,153 @@ export default function App() {
     persistAsync(persistence.saveSettings(next));
   };
 
+  const openNewTaskModal = (initialStatus: TaskStatus = 'Pending') => {
+    setEditingTask(null);
+    setModalInitialStatus(initialStatus);
+    setModalOpen(true);
+  };
+
+  const openEditTaskModal = (task: Task) => {
+    setEditingTask(task);
+    setModalInitialStatus(task.status);
+    setModalOpen(true);
+  };
+
   const handleToggleTask = (id: number) => {
     const current = tasks.find((task) => task.id === id);
     if (!current) return;
-    const updated: Task = {
-      ...current,
-      done: !current.done,
-      status: !current.done ? 'Completada' : 'Pendiente',
-    };
-    setTasks((prev) => prev.map((task) => (task.id === id ? updated : task)));
-    persistAsync(persistence.upsertTask(updated));
+    taskService
+      .toggleComplete(current)
+      .then(({ updated, spawned }) => {
+        setTasks((prev) => {
+          const mapped = prev.map((t) => (t.id === id ? updated : t));
+          return spawned ? [spawned, ...mapped] : mapped;
+        });
+        if (spawned) {
+          notify('Tarea completada y siguiente ocurrencia programada');
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        notify('No se pudo actualizar la tarea');
+      });
   };
 
-  const handleDeleteTask = (id: number) => {
-    setTasks((prev) => prev.filter((task) => task.id !== id));
-    persistAsync(persistence.deleteTask(id));
-    notify('Tarea eliminada');
+  const handleChangeTaskStatus = (id: number, status: TaskStatus) => {
+    const current = tasks.find((task) => task.id === id);
+    if (!current || current.status === status) return;
+    taskService
+      .changeStatus(current, status)
+      .then(({ updated, spawned }) => {
+        setTasks((prev) => {
+          const mapped = prev.map((t) => (t.id === id ? updated : t));
+          return spawned ? [spawned, ...mapped] : mapped;
+        });
+        if (spawned) {
+          notify('Tarea completada y siguiente ocurrencia programada');
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        notify('No se pudo cambiar el estado de la tarea');
+      });
   };
 
-  const handleCreateTask = (draft: Omit<Task, 'id'>) => {
-    const created: Task = { id: Date.now(), ...draft };
-    setTasks((prev) => [created, ...prev]);
-    setModalOpen(false);
-    persistAsync(persistence.upsertTask(created));
-    notify('La tarea se creó correctamente');
+  const handleSoftDeleteTask = (id: number) => {
+    const current = tasks.find((task) => task.id === id);
+    if (!current) return;
+    taskService
+      .softDelete(current)
+      .then((trashed) => {
+        setTasks((prev) => prev.map((t) => (t.id === id ? trashed : t)));
+        notify('Tarea movida a la papelera');
+      })
+      .catch((err) => {
+        console.error(err);
+        notify('No se pudo mover la tarea a la papelera');
+      });
+  };
+
+  const handleRestoreTask = (id: number) => {
+    const current = tasks.find((task) => task.id === id);
+    if (!current) return;
+    taskService
+      .restore(current)
+      .then((restored) => {
+        setTasks((prev) => prev.map((t) => (t.id === id ? restored : t)));
+        notify('Tarea restaurada desde la papelera');
+      })
+      .catch((err) => {
+        console.error(err);
+        notify('No se pudo restaurar la tarea');
+      });
+  };
+
+  const handlePermanentDeleteTask = (id: number) => {
+    taskService
+      .permanentDelete(id)
+      .then(() => {
+        setTasks((prev) => prev.filter((t) => t.id !== id));
+        notify('Tarea eliminada permanentemente');
+      })
+      .catch((err) => {
+        console.error(err);
+        notify('No se pudo eliminar la tarea');
+      });
+  };
+
+  const handleToggleSubtask = (taskId: number, subtaskId: string) => {
+    const current = tasks.find((task) => task.id === taskId);
+    if (!current) return;
+    taskService
+      .toggleSubtask(current, subtaskId)
+      .then((updated) => {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+      })
+      .catch((err) => {
+        console.error(err);
+        notify('No se pudo actualizar la subtarea');
+      });
+  };
+
+  const handleCreateTask = (dto: CreateTaskDto) => {
+    taskService
+      .create(dto)
+      .then((created) => {
+        setTasks((prev) => [created, ...prev]);
+        setModalOpen(false);
+        setEditingTask(null);
+        notify('La tarea se creó correctamente');
+      })
+      .catch((err) => {
+        if (err instanceof TaskValidationError) {
+          notify(err.message);
+        } else {
+          console.error(err);
+          notify('No se pudo crear la tarea');
+        }
+      });
+  };
+
+  const handleUpdateTask = (dto: UpdateTaskDto) => {
+    const current = tasks.find((task) => task.id === dto.id);
+    if (!current) return;
+    taskService
+      .update(current, dto)
+      .then((updated) => {
+        setTasks((prev) => prev.map((t) => (t.id === dto.id ? updated : t)));
+        setModalOpen(false);
+        setEditingTask(null);
+        notify('Tarea actualizada correctamente');
+      })
+      .catch((err) => {
+        if (err instanceof TaskValidationError) {
+          notify(err.message);
+        } else {
+          console.error(err);
+          notify('No se pudo actualizar la tarea');
+        }
+      });
   };
 
   const handleCreateProject = (name: string, desc: string) => {
@@ -209,10 +346,13 @@ export default function App() {
 
   const handleCompleteSession = (taskTitle: string, durationMinutes: number) => {
     const completedAt = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date());
+    const matchedTask = tasks.find((t) => t.title === taskTitle);
     const created: FocusSession = {
       id: Date.now(),
+      taskId: matchedTask?.id ?? null,
       taskTitle,
       durationMinutes,
+      date: toLocalDateKey(),
       completedAt,
       completionRate: 100,
       color: 'violet',
@@ -220,6 +360,37 @@ export default function App() {
     setSessions((prev) => [created, ...prev]);
     persistAsync(persistence.upsertFocusSession(created));
     notify('Sesión registrada en el historial');
+  };
+
+  const handleCreateBackup = () => {
+    persistence
+      .createBackup()
+      .then((info) => {
+        setBackups((prev) => [info, ...prev.filter((b) => b.fileName !== info.fileName)]);
+        notify(`Copia creada: ${info.fileName}`);
+      })
+      .catch((err) => {
+        console.error(err);
+        notify('No se pudo crear la copia de seguridad');
+      });
+  };
+
+  const handleRestoreBackup = (fileName: string) => {
+    persistence
+      .restoreBackup(fileName, DEFAULT_SETTINGS)
+      .then((data) => {
+        setSettings(data.settings);
+        setTasks(data.tasks);
+        setProjects(data.projects);
+        setEvents(data.events);
+        setReminders(data.reminders);
+        setSessions(data.sessions);
+        notify('Copia de seguridad restaurada correctamente');
+      })
+      .catch((err) => {
+        console.error(err);
+        notify('No se pudo restaurar la copia de seguridad');
+      });
   };
 
   const handleResetAllData = () => {
@@ -233,7 +404,8 @@ export default function App() {
     notify('Datos locales restablecidos');
   };
 
-  const completedCount = tasks.filter((t) => t.done).length;
+  const activeTasks = useMemo(() => tasks.filter((t) => !isTaskDeleted(t)), [tasks]);
+  const completedCount = activeTasks.filter((t) => isTaskCompleted(t)).length;
   const activeRemindersCount = reminders.filter((r) => r.enabled).length;
   const userInitials =
     settings.userName
@@ -250,7 +422,7 @@ export default function App() {
         return (
           <DashboardPage
             userName={settings.userName}
-            tasks={tasks}
+            tasks={activeTasks}
             projects={projects}
             events={events}
             weekDays={WEEK_DAYS_DEFAULT}
@@ -259,7 +431,7 @@ export default function App() {
             onToggleTask={handleToggleTask}
             onNavigate={openModule}
             onToggleTimer={() => setTimerRunning((prev) => !prev)}
-            onOpenNewTask={() => setModalOpen(true)}
+            onOpenNewTask={() => openNewTaskModal('Pending')}
           />
         );
       case 'Tareas':
@@ -267,8 +439,13 @@ export default function App() {
           <TasksPage
             tasks={tasks}
             onToggleTask={handleToggleTask}
-            onDeleteTask={handleDeleteTask}
-            onOpenNewTask={() => setModalOpen(true)}
+            onChangeStatus={handleChangeTaskStatus}
+            onEditTask={openEditTaskModal}
+            onDeleteTask={handleSoftDeleteTask}
+            onRestoreTask={handleRestoreTask}
+            onPermanentDeleteTask={handlePermanentDeleteTask}
+            onToggleSubtask={handleToggleSubtask}
+            onOpenNewTask={openNewTaskModal}
           />
         );
       case 'Proyectos':
@@ -316,7 +493,7 @@ export default function App() {
       case 'Enfoque':
         return (
           <FocusPage
-            tasks={tasks}
+            tasks={activeTasks}
             sessions={sessions}
             seconds={seconds}
             running={timerRunning}
@@ -329,7 +506,7 @@ export default function App() {
       case 'Estadísticas':
         return (
           <StatsPage
-            tasks={tasks}
+            tasks={activeTasks}
             projects={projects}
             sessions={sessions}
             weekDays={WEEK_DAYS_DEFAULT}
@@ -339,13 +516,16 @@ export default function App() {
         return (
           <SettingsPage
             settings={settings}
+            backups={backups}
             onUpdateSettings={updateSettings}
+            onCreateBackup={handleCreateBackup}
+            onRestoreBackup={handleRestoreBackup}
             onResetAllData={handleResetAllData}
             onNotify={notify}
           />
         );
     }
-  }, [active, events, now, projects, reminders, seconds, sessions, settings, tasks, timerRunning, userInitials]);
+  }, [active, activeTasks, backups, events, now, projects, reminders, seconds, sessions, settings, tasks, timerRunning, userInitials]);
 
   return (
     <div className="app">
@@ -356,7 +536,7 @@ export default function App() {
         onSelect={openModule}
         onCloseMenu={() => setMenuOpen(false)}
         completedCount={completedCount}
-        totalCount={tasks.length}
+        totalCount={activeTasks.length}
         activeRemindersCount={activeRemindersCount}
         userName={settings.userName}
       />
@@ -367,13 +547,13 @@ export default function App() {
           onQueryChange={setQuery}
           searchRef={searchRef}
           modules={MODULE_ITEMS}
-          tasks={tasks}
+          tasks={activeTasks}
           projects={projects}
           dark={settings.dark}
           onToggleTheme={() => updateSettings({ dark: !settings.dark })}
           onOpenModule={openModule}
           onOpenMenu={() => setMenuOpen(true)}
-          onOpenNewTask={() => setModalOpen(true)}
+          onOpenNewTask={() => openNewTaskModal('Pending')}
         />
 
         <div className="page" key={active}>
@@ -384,7 +564,7 @@ export default function App() {
               <p>{PAGE_DESCRIPTIONS[active]}</p>
             </div>
             {active !== 'Configuración' && (
-              <button type="button" className="primary mobile-new" onClick={() => setModalOpen(true)}>
+              <button type="button" className="primary mobile-new" onClick={() => openNewTaskModal('Pending')}>
                 <Icon name="plus" />
                 Crear
               </button>
@@ -397,8 +577,14 @@ export default function App() {
       {modalOpen && (
         <TaskModal
           projects={projects}
-          onClose={() => setModalOpen(false)}
+          taskToEdit={editingTask}
+          initialStatus={modalInitialStatus}
+          onClose={() => {
+            setModalOpen(false);
+            setEditingTask(null);
+          }}
           onCreate={handleCreateTask}
+          onUpdate={handleUpdateTask}
         />
       )}
 

@@ -1,6 +1,7 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type {
   AppData,
+  BackupInfo,
   CalendarEvent,
   FocusSession,
   Project,
@@ -88,6 +89,30 @@ export const persistence = {
     );
   },
 
+  async softDeleteTask(id: number, deletedAt: string): Promise<void> {
+    if (isTauri()) {
+      await invoke('soft_delete_task', { id, deletedAt });
+      return;
+    }
+    const list = readLocal<Task[]>(STORAGE_KEYS.tasks, []);
+    writeLocal(
+      STORAGE_KEYS.tasks,
+      list.map((item) => (item.id === id ? { ...item, deletedAt, updatedAt: deletedAt } : item)),
+    );
+  },
+
+  async restoreTask(id: number, updatedAt: string): Promise<void> {
+    if (isTauri()) {
+      await invoke('restore_task', { id, updatedAt });
+      return;
+    }
+    const list = readLocal<Task[]>(STORAGE_KEYS.tasks, []);
+    writeLocal(
+      STORAGE_KEYS.tasks,
+      list.map((item) => (item.id === id ? { ...item, deletedAt: null, updatedAt } : item)),
+    );
+  },
+
   async deleteTask(id: number): Promise<void> {
     if (isTauri()) {
       await invoke('delete_task', { id });
@@ -110,6 +135,23 @@ export const persistence = {
     writeLocal(
       STORAGE_KEYS.projects,
       exists ? list.map((item) => (item.id === project.id ? project : item)) : [...list, project],
+    );
+  },
+
+  async deleteProject(id: number): Promise<void> {
+    if (isTauri()) {
+      await invoke('delete_project', { id });
+      return;
+    }
+    const projects = readLocal<Project[]>(STORAGE_KEYS.projects, []);
+    writeLocal(
+      STORAGE_KEYS.projects,
+      projects.filter((item) => item.id !== id),
+    );
+    const tasks = readLocal<Task[]>(STORAGE_KEYS.tasks, []);
+    writeLocal(
+      STORAGE_KEYS.tasks,
+      tasks.map((t) => (t.projectId === id ? { ...t, projectId: null, project: 'Sin proyecto' } : t)),
     );
   },
 
@@ -170,5 +212,61 @@ export const persistence = {
     }
     const list = readLocal<FocusSession[]>(STORAGE_KEYS.sessions, []);
     writeLocal(STORAGE_KEYS.sessions, [session, ...list]);
+  },
+
+  async createBackup(): Promise<BackupInfo> {
+    if (isTauri()) {
+      return invoke<BackupInfo>('create_backup');
+    }
+    const nowSec = Math.floor(Date.now() / 1000);
+    const fileName = `cronia-backup-${nowSec}.json`;
+    const snapshot = JSON.stringify({
+      settings: readLocal(STORAGE_KEYS.settings, null),
+      tasks: readLocal(STORAGE_KEYS.tasks, []),
+      projects: readLocal(STORAGE_KEYS.projects, []),
+      events: readLocal(STORAGE_KEYS.events, []),
+      reminders: readLocal(STORAGE_KEYS.reminders, []),
+      sessions: readLocal(STORAGE_KEYS.sessions, []),
+    });
+    const backups = readLocal<Record<string, string>>('cronia.backups', {});
+    backups[fileName] = snapshot;
+    writeLocal('cronia.backups', backups);
+    return {
+      fileName,
+      path: `localStorage://${fileName}`,
+      sizeBytes: snapshot.length,
+      createdAt: String(nowSec),
+    };
+  },
+
+  async listBackups(): Promise<BackupInfo[]> {
+    if (isTauri()) {
+      return invoke<BackupInfo[]>('list_backups');
+    }
+    const backups = readLocal<Record<string, string>>('cronia.backups', {});
+    return Object.entries(backups)
+      .map(([fileName, raw]) => ({
+        fileName,
+        path: `localStorage://${fileName}`,
+        sizeBytes: raw.length,
+        createdAt: fileName.replace(/\D/g, '') || '0',
+      }))
+      .sort((a, b) => b.fileName.localeCompare(a.fileName));
+  },
+
+  async restoreBackup(fileName: string, fallbackSettings: UserSettings): Promise<AppData> {
+    if (isTauri()) {
+      return invoke<AppData>('restore_backup', { fileName, fallbackSettings });
+    }
+    const backups = readLocal<Record<string, string>>('cronia.backups', {});
+    const raw = backups[fileName];
+    if (!raw) throw new Error('Copia de seguridad no encontrada');
+    const parsed = JSON.parse(raw) as AppData;
+    const restored: AppData = {
+      ...parsed,
+      settings: parsed.settings ?? fallbackSettings,
+    };
+    writeLocalAppData(restored);
+    return restored;
   },
 };

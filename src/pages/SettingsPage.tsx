@@ -1,12 +1,15 @@
 import { useState, type ReactNode } from 'react';
-import type { AccentTone, IconName, UserSettings } from '../types';
+import type { AccentTone, BackupInfo, IconName, UserSettings } from '../types';
 import { Icon } from '../components/ui/Icon';
 import { PanelHeading } from '../components/ui/PanelHeading';
 import { SettingRow } from '../components/ui/SettingRow';
 
 interface SettingsPageProps {
   settings: UserSettings;
+  backups: BackupInfo[];
   onUpdateSettings: (partial: Partial<UserSettings>) => void;
+  onCreateBackup: () => void;
+  onRestoreBackup: (fileName: string) => void;
   onResetAllData: () => void;
   onNotify: (message: string) => void;
 }
@@ -25,7 +28,10 @@ const ACCENT_COLORS: AccentTone[] = ['violet', 'blue', 'green', 'orange', 'red']
 
 export function SettingsPage({
   settings,
+  backups,
   onUpdateSettings,
+  onCreateBackup,
+  onRestoreBackup,
   onResetAllData,
   onNotify,
 }: SettingsPageProps) {
@@ -146,11 +152,30 @@ export function SettingsPage({
         <SettingRow title="Copia automática" desc="Crear una copia local cada 24 horas">
           {sw('autoBackup')}
         </SettingRow>
-        <SettingRow title="Crear copia ahora" desc="Incluye tareas, proyectos y preferencias">
-          <button type="button" className="setting-action" onClick={() => onNotify('Copia de seguridad creada')}>
+        <SettingRow title="Crear copia ahora" desc="Genera un snapshot completo de la base de datos SQLite">
+          <button type="button" className="setting-action" onClick={onCreateBackup}>
             Crear copia
           </button>
         </SettingRow>
+        {backups.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            {backups.slice(0, 5).map((b) => (
+              <SettingRow
+                key={b.fileName}
+                title={b.fileName}
+                desc={`${Math.max(1, Math.round(b.sizeBytes / 1024))} KB`}
+              >
+                <button
+                  type="button"
+                  className="setting-action"
+                  onClick={() => onRestoreBackup(b.fileName)}
+                >
+                  Restaurar
+                </button>
+              </SettingRow>
+            ))}
+          </div>
+        )}
       </>
     ),
     Privacidad: (
