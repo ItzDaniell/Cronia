@@ -1,9 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Check, Download, Pause, Play, RotateCcw, SlidersHorizontal, Target, Timer, Zap } from 'lucide-react';
+import {
+  Check,
+  Download,
+  Pause,
+  Play,
+  RotateCcw,
+  SlidersHorizontal,
+  Target,
+  Timer,
+  Volume2,
+  Zap,
+} from 'lucide-react';
 import type { FocusSession, Task } from '@/types';
-import { isTaskCompleted } from '@/modules/tasks/domain/rules';
 import { downloadJson } from '@/utils/exportData';
+import { ALERT_TONE_LABELS, playAlertTone, type AlertTone } from '@/utils/sound';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,8 +33,13 @@ interface FocusPageProps {
   sessions: FocusSession[];
   seconds: number;
   running: boolean;
+  selectedTask: string;
+  alertTone: AlertTone;
+  onSelectTask: (title: string) => void;
+  onChangeAlertTone: (tone: AlertTone) => void;
   onSetSeconds: (seconds: number) => void;
   onSetRunning: (running: boolean) => void;
+  onSyncFocusConfig: (durationMinutes: number, countsAsWork: boolean) => void;
   onCompleteSession: (taskTitle: string, durationMinutes: number) => void;
   onNotify: (message: string) => void;
 }
@@ -48,18 +64,19 @@ export function FocusPage({
   sessions,
   seconds,
   running,
+  selectedTask,
+  alertTone,
+  onSelectTask,
+  onChangeAlertTone,
   onSetSeconds,
   onSetRunning,
+  onSyncFocusConfig,
   onCompleteSession,
   onNotify,
 }: FocusPageProps) {
   const [phase, setPhase] = useState<FocusPhase>('Enfoque');
-  const [selectedTask, setSelectedTask] = useState(
-    tasks.find((t) => !isTaskCompleted(t))?.title ?? 'Sin tarea asociada',
-  );
   const [customMinutes, setCustomMinutes] = useState<number>(readCustomMinutes);
   const [draftCustom, setDraftCustom] = useState<string>(String(customMinutes));
-  const [ambient, setAmbient] = useState('Sin sonido');
   const [editOpen, setEditOpen] = useState(false);
 
   const durations: Record<FocusPhase, number> = {
@@ -69,6 +86,11 @@ export function FocusPage({
     Personalizado: customMinutes,
   };
   const duration = durations[phase];
+  const countsAsWork = phase === 'Enfoque' || phase === 'Personalizado';
+
+  useEffect(() => {
+    onSyncFocusConfig(duration, countsAsWork);
+  }, [duration, countsAsWork, onSyncFocusConfig]);
 
   const choosePhase = (next: FocusPhase) => {
     setPhase(next);
@@ -275,19 +297,42 @@ export function FocusPage({
           <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label className="flex h-4 items-center gap-1.5 text-[11px] uppercase tracking-wider">
-                Sonido ambiente
+                <Volume2 className="h-3.5 w-3.5 text-[var(--accent)]" />
+                Tono de alerta
               </Label>
-              <Select value={ambient} onValueChange={setAmbient}>
-                <SelectTrigger className="bg-[var(--surface)]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sin sonido">Sin sonido</SelectItem>
-                  <SelectItem value="Lluvia suave">Lluvia suave</SelectItem>
-                  <SelectItem value="Café">Café</SelectItem>
-                  <SelectItem value="Ruido blanco">Ruido blanco</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={alertTone}
+                  onValueChange={(val) => {
+                    const next = val as AlertTone;
+                    onChangeAlertTone(next);
+                    playAlertTone(next);
+                  }}
+                >
+                  <SelectTrigger className="bg-[var(--surface)]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(ALERT_TONE_LABELS) as AlertTone[]).map((tone) => (
+                      <SelectItem key={tone} value={tone}>
+                        {ALERT_TONE_LABELS[tone]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 bg-[var(--surface)]"
+                  onClick={() => playAlertTone(alertTone)}
+                  disabled={alertTone === 'silencio'}
+                  title="Probar tono"
+                  aria-label="Probar tono de alerta"
+                >
+                  <Volume2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -295,7 +340,7 @@ export function FocusPage({
                 <Target className="h-3.5 w-3.5 text-[var(--accent)]" />
                 Tarea asociada
               </Label>
-              <Select value={selectedTask} onValueChange={setSelectedTask}>
+              <Select value={selectedTask} onValueChange={onSelectTask}>
                 <SelectTrigger className="bg-[var(--surface)]">
                   <SelectValue />
                 </SelectTrigger>

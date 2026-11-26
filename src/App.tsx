@@ -24,7 +24,12 @@ import { taskService, TaskValidationError } from './modules/tasks/application/ta
 import type { CreateTaskDto, UpdateTaskDto } from './modules/tasks/application/dtos';
 import { isTaskCompleted, isTaskDeleted, toLocalDateKey } from './modules/tasks/domain/rules';
 import { computeWeeklyStats } from './utils/analytics';
-import { playCompletionChime } from './utils/sound';
+import {
+  ALERT_TONE_STORAGE_KEY,
+  playAlertTone,
+  readStoredAlertTone,
+  type AlertTone,
+} from './utils/sound';
 import type { TaskStatus } from './types';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -60,6 +65,10 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [timerRunning, setTimerRunning] = useState(false);
   const [seconds, setSeconds] = useState(25 * 60);
+  const [focusDurationMinutes, setFocusDurationMinutes] = useState(25);
+  const [focusTaskTitle, setFocusTaskTitle] = useState('Sin tarea asociada');
+  const [focusCountsAsWork, setFocusCountsAsWork] = useState(true);
+  const [alertTone, setAlertTone] = useState<AlertTone>(readStoredAlertTone);
   const [now, setNow] = useState(new Date());
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -109,19 +118,45 @@ export default function App() {
     document.documentElement.dataset.accent = settings.accent;
   }, [settings.dark, settings.accent]);
 
+  const handleChangeAlertTone = (tone: AlertTone) => {
+    setAlertTone(tone);
+    try {
+      window.localStorage.setItem(ALERT_TONE_STORAGE_KEY, tone);
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
   useEffect(() => {
     if (!timerRunning) return;
     const id = window.setInterval(() => {
-      setSeconds((s) => {
-        if (s > 1) return s - 1;
-        setTimerRunning(false);
-        if (settings.soundEnabled) playCompletionChime();
-        notify('¡Sesión de enfoque completada!');
-        return 25 * 60;
-      });
+      setSeconds((s) => (s > 0 ? s - 1 : 0));
     }, 1000);
     return () => window.clearInterval(id);
-  }, [timerRunning, settings.soundEnabled]);
+  }, [timerRunning]);
+
+  // Al llegar a 0, registrar automáticamente la sesión y sumar al tiempo total
+  useEffect(() => {
+    if (!timerRunning || seconds > 0) return;
+    setTimerRunning(false);
+    if (settings.soundEnabled) {
+      playAlertTone(alertTone);
+    }
+    if (focusCountsAsWork) {
+      handleCompleteSession(focusTaskTitle, focusDurationMinutes);
+    } else {
+      notify('¡Descanso finalizado!');
+    }
+    setSeconds(focusDurationMinutes * 60);
+  }, [
+    seconds,
+    timerRunning,
+    settings.soundEnabled,
+    alertTone,
+    focusCountsAsWork,
+    focusTaskTitle,
+    focusDurationMinutes,
+  ]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -556,8 +591,16 @@ export default function App() {
             sessions={sessions}
             seconds={seconds}
             running={timerRunning}
+            selectedTask={focusTaskTitle}
+            alertTone={alertTone}
+            onSelectTask={setFocusTaskTitle}
+            onChangeAlertTone={handleChangeAlertTone}
             onSetSeconds={setSeconds}
             onSetRunning={setTimerRunning}
+            onSyncFocusConfig={(minutes, countsAsWork) => {
+              setFocusDurationMinutes(minutes);
+              setFocusCountsAsWork(countsAsWork);
+            }}
             onCompleteSession={handleCompleteSession}
             onNotify={notify}
           />
@@ -584,7 +627,7 @@ export default function App() {
           />
         );
     }
-  }, [active, activeTasks, backups, events, now, projects, reminders, seconds, selectedProjectId, sessions, settings, tasks, timerRunning, userInitials, weekDays]);
+  }, [active, activeTasks, alertTone, backups, events, focusTaskTitle, now, projects, reminders, seconds, selectedProjectId, sessions, settings, tasks, timerRunning, userInitials, weekDays]);
 
   const timerLabel = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
