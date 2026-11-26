@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Moon, Sun, Trash2 } from 'lucide-react';
 import type { AccentTone, BackupInfo, IconName, UserSettings } from '@/types';
 import { Icon } from '@/components/ui/Icon';
@@ -47,6 +47,24 @@ export function SettingsPage({
   onNotify,
 }: SettingsPageProps) {
   const [tab, setTab] = useState('General');
+  const [draftName, setDraftName] = useState(settings.userName);
+
+  useEffect(() => {
+    setDraftName(settings.userName);
+  }, [settings.userName]);
+
+  const handleSaveChanges = () => {
+    const clean = draftName.trim();
+    if (!clean) {
+      onNotify('El nombre de usuario no puede estar vacío');
+      setDraftName(settings.userName);
+      return;
+    }
+    if (clean !== settings.userName) {
+      onUpdateSettings({ userName: clean });
+    }
+    onNotify('Preferencias guardadas correctamente');
+  };
 
   const sw = (key: keyof UserSettings) => (
     <Switch
@@ -60,8 +78,14 @@ export function SettingsPage({
       <>
         <SettingRow title="Nombre de usuario" desc="Se muestra en el saludo del Dashboard y tu perfil">
           <Input
-            value={settings.userName}
-            onChange={(e) => onUpdateSettings({ userName: e.target.value })}
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSaveChanges();
+              }
+            }}
             className="w-[220px]"
           />
         </SettingRow>
@@ -260,7 +284,7 @@ export function SettingsPage({
         </CardHeader>
         <CardContent className="py-2">{contents[tab]}</CardContent>
         <div className="flex justify-end border-t border-[var(--line)] px-5 py-4">
-          <Button type="button" onClick={() => onNotify('Preferencias guardadas correctamente')}>
+          <Button type="button" onClick={handleSaveChanges}>
             Guardar cambios
           </Button>
         </div>
