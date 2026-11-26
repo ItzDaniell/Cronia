@@ -121,12 +121,20 @@ test('completar una tarea recurrente genera automáticamente la siguiente instan
 
   const { updated, spawned } = toggleTaskCompletion(dailyTask, NOW, 201);
   assert.equal(updated.status, 'Completed');
+  assert.equal(updated.recurrence.frequency, 'none');
   assert.ok(updated.completedAt);
   assert.ok(spawned);
   assert.equal(spawned.id, 201);
   assert.equal(spawned.status, 'Pending');
   assert.equal(spawned.dueDate, '2026-11-26');
+  assert.equal(spawned.recurrence.frequency, 'daily');
   assert.equal(spawned.subtasks[0].completed, false);
+
+  // Desmarcar y volver a marcar el registro histórico NO debe clonar otra vez
+  const unchecked = toggleTaskCompletion(updated, NOW, 202);
+  assert.equal(unchecked.spawned, null);
+  const rechecked = toggleTaskCompletion(unchecked.updated, NOW, 203);
+  assert.equal(rechecked.spawned, null);
 
   // Respects endDate limit
   const pastLimit = addRecurrenceToDate('2026-11-29', {

@@ -186,7 +186,7 @@ export function SettingsPage({
         <SettingRow title="Diagnósticos anónimos" desc="Nunca incluye contenido de tareas">
           {sw('diagnostics')}
         </SettingRow>
-        <SettingRow title="Restablecer datos locales" desc="Vuelve a los datos iniciales de demostración">
+        <SettingRow title="Restablecer datos locales" desc="Borra todos los datos guardados y deja Cronia vacío">
           <button type="button" className="delete-action" onClick={onResetAllData}>
             <Icon name="trash" />
             Restablecer

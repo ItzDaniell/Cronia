@@ -1,5 +1,6 @@
 import type { CalendarEvent, ModuleName, Project, Task, WeekDayStat } from '../types';
-import { isTaskCompleted, isTaskDueToday, isTaskOverdue } from '../modules/tasks/domain/rules';
+import { isTaskCompleted, isTaskDueToday, isTaskOverdue, toLocalDateKey } from '../modules/tasks/domain/rules';
+import { computeProjectProgress } from '../utils/analytics';
 import { Icon } from '../components/ui/Icon';
 import { MetricCard } from '../components/ui/MetricCard';
 import { PanelHeading } from '../components/ui/PanelHeading';
@@ -49,7 +50,9 @@ export function DashboardPage({
   const dueTodayCount = tasks.filter((t) => !isTaskCompleted(t) && isTaskDueToday(t)).length;
   const progress = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
   const activeProjects = projects.filter((p) => !p.archived);
-  const todayEvents = events.slice(0, 3);
+  const todayKey = toLocalDateKey(now);
+  const matchingToday = events.filter((e) => e.date === todayKey);
+  const todayEvents = (matchingToday.length > 0 ? matchingToday : events).slice(0, 3);
 
   return (
     <div className="dash-grid">
@@ -101,17 +104,24 @@ export function DashboardPage({
           onAction={() => onNavigate('Calendario')}
         />
         <div className="timeline">
-          {todayEvents.map((ev) => (
-            <div key={ev.id}>
-              <time>{ev.time}</time>
-              <i className={ev.color} />
-              <article>
-                <small>{ev.type.toUpperCase()}</small>
-                <strong>{ev.title}</strong>
-                <span>Día {ev.day}</span>
-              </article>
+          {todayEvents.length === 0 ? (
+            <div className="empty-state" style={{ padding: '20px 8px' }}>
+              <strong>Sin eventos programados</strong>
+              <span>Añade actividades desde el Calendario.</span>
             </div>
-          ))}
+          ) : (
+            todayEvents.map((ev) => (
+              <div key={ev.id}>
+                <time>{ev.time}</time>
+                <i className={ev.color} />
+                <article>
+                  <small>{ev.type.toUpperCase()}</small>
+                  <strong>{ev.title}</strong>
+                  <span>{ev.date || `Día ${ev.day}`}</span>
+                </article>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
@@ -133,19 +143,26 @@ export function DashboardPage({
           onAction={() => onNavigate('Proyectos')}
         />
         <div className="project-chips">
-          {activeProjects.slice(0, 2).map((proj) => {
-            const pct = proj.total > 0 ? Math.round((proj.done / proj.total) * 100) : 0;
-            return (
-              <button type="button" key={proj.id} onClick={() => onNavigate('Proyectos')}>
-                <i className={proj.color} />
-                <span>
-                  <strong>{proj.name}</strong>
-                  {proj.done}/{proj.total} tareas
-                </span>
-                <b>{pct}%</b>
-              </button>
-            );
-          })}
+          {activeProjects.length === 0 ? (
+            <div className="empty-state" style={{ gridColumn: '1/-1', padding: '16px 8px' }}>
+              <strong>Aún no tienes proyectos</strong>
+              <span>Crea tu primer proyecto para organizar tus tareas.</span>
+            </div>
+          ) : (
+            activeProjects.slice(0, 2).map((proj) => {
+              const { done, total, pct } = computeProjectProgress(proj, tasks);
+              return (
+                <button type="button" key={proj.id} onClick={() => onNavigate('Proyectos')}>
+                  <i className={proj.color} />
+                  <span>
+                    <strong>{proj.name}</strong>
+                    {done}/{total} tareas
+                  </span>
+                  <b>{pct}%</b>
+                </button>
+              );
+            })
+          )}
         </div>
       </section>
 

@@ -263,4 +263,48 @@ mod tests {
     drop(conn);
     let _ = std::fs::remove_dir_all(&temp_dir);
   }
+
+  #[test]
+  fn migrates_legacy_v2_database_without_project_id_or_dates() {
+    let conn = Connection::open_in_memory().unwrap();
+    // Simular un cronia.db previo (sin project_id en tasks ni date en events/sessions)
+    conn
+      .execute_batch(
+        "
+        CREATE TABLE tasks (
+          id INTEGER PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          project TEXT NOT NULL,
+          priority TEXT NOT NULL,
+          status TEXT NOT NULL,
+          category TEXT NOT NULL,
+          color TEXT NOT NULL
+        );
+        CREATE TABLE calendar_events (
+          id INTEGER PRIMARY KEY,
+          day INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          color TEXT NOT NULL,
+          time TEXT NOT NULL
+        );
+        CREATE TABLE focus_sessions (
+          id INTEGER PRIMARY KEY,
+          task_title TEXT NOT NULL,
+          duration_minutes INTEGER NOT NULL,
+          completed_at TEXT NOT NULL,
+          completion_rate INTEGER NOT NULL,
+          color TEXT NOT NULL
+        );
+        ",
+      )
+      .unwrap();
+
+    // Debe migrar columnas y crear todos los índices sin error
+    schema::init(&conn).unwrap();
+    assert!(tasks::load_all(&conn).unwrap().is_empty());
+    assert!(events::load_all(&conn).unwrap().is_empty());
+    assert!(sessions::load_all(&conn).unwrap().is_empty());
+  }
 }

@@ -25,11 +25,6 @@ pub fn init(conn: &Connection) -> Result<(), String> {
         completed_at TEXT,
         deleted_at TEXT
       );
-
-      CREATE INDEX IF NOT EXISTS idx_tasks_deleted_at ON tasks(deleted_at);
-      CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
-      CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-      CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
       ",
     )
     .map_err(|e| format!("Error al crear tabla tasks: {e}"))

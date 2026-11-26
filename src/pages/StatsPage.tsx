@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FocusSession, Project, Task, WeekDayStat } from '../types';
-import { isTaskCompleted } from '../modules/tasks/domain/rules';
+import { computePeriodMetrics, computeProjectProgress } from '../utils/analytics';
 import { Icon } from '../components/ui/Icon';
 import { MetricCard } from '../components/ui/MetricCard';
 import { PanelHeading } from '../components/ui/PanelHeading';
@@ -15,14 +15,9 @@ interface StatsPageProps {
 
 export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProps) {
   const [period, setPeriod] = useState<'7 días' | '30 días' | '90 días'>('7 días');
-  const multiplier = period === '30 días' ? 4 : period === '90 días' ? 12 : 1;
+  const days: 7 | 30 | 90 = period === '30 días' ? 30 : period === '90 días' ? 90 : 7;
 
-  const totalFocusMins = sessions.reduce((acc, s) => acc + s.durationMinutes, 0) * multiplier;
-  const focusHours = Math.floor(totalFocusMins / 60);
-  const focusMins = totalFocusMins % 60;
-
-  const completedTasks = tasks.filter((t) => isTaskCompleted(t)).length;
-  const completionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+  const metrics = useMemo(() => computePeriodMetrics(tasks, sessions, days), [tasks, sessions, days]);
 
   const urgentCount = tasks.filter((t) => t.priority === 'Urgent').length;
   const highCount = tasks.filter((t) => t.priority === 'High').length;
@@ -30,7 +25,9 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
   const lowCount = tasks.filter((t) => t.priority === 'Low').length;
   const maxPriority = Math.max(1, urgentCount, highCount, medCount, lowCount);
 
-  const activeProjects = projects.filter((p) => !p.archived);
+  const activeProjects = projects
+    .filter((p) => !p.archived)
+    .map((p) => ({ project: p, ...computeProjectProgress(p, tasks) }));
   const totalProjectTasks = activeProjects.reduce((acc, p) => acc + p.total, 0) || 1;
 
   return (
@@ -39,7 +36,7 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
         <div>
           <strong>Cómo leer este informe</strong>
           <span>
-            Los datos se calculan a partir de tus tareas, proyectos y sesiones de enfoque registradas en este equipo.
+            Los datos se calculan en tiempo real a partir de tus tareas, proyectos y sesiones de enfoque guardadas en SQLite.
           </span>
         </div>
         <label>
@@ -58,28 +55,28 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
             icon="timer"
             tone="violet"
             label="Tiempo registrado"
-            value={`${focusHours}h ${focusMins}m`}
+            value={`${metrics.focusHours}h ${metrics.focusMins}m`}
             note={`Período: ${period}`}
           />
           <MetricCard
             icon="check"
             tone="green"
             label="Tareas finalizadas"
-            value={completedTasks * multiplier}
-            note={`De ${tasks.length * multiplier} registradas`}
+            value={metrics.completedTasks}
+            note={`De ${metrics.totalTasks} registradas`}
           />
           <MetricCard
             icon="target"
             tone="blue"
             label="Tasa de finalización"
-            value={`${completionRate}%`}
+            value={`${metrics.completionRate}%`}
             note="Completadas frente a planificadas"
           />
           <MetricCard
             icon="bolt"
             tone="orange"
             label="Sesiones totales"
-            value={sessions.length * multiplier}
+            value={metrics.sessionsCount}
             note="Ciclos de enfoque completados"
           />
         </section>
@@ -87,30 +84,30 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
         <section className="panel stats-chart">
           <PanelHeading
             title="Evolución de productividad"
-            subtitle="Porcentaje de tareas planificadas completadas cada día"
+            subtitle="Porcentaje de tareas planificadas completadas cada día de la semana"
           />
           <WeeklyBars days={weekDays} large />
         </section>
 
         <section className="panel distribution">
-          <PanelHeading title="Distribución por proyecto" subtitle="Carga de trabajo activa" />
+          <PanelHeading title="Distribución por proyecto" subtitle="Carga de trabajo real vinculada" />
           <div className="distribution-body">
             <div className="big-donut">
               <span>
-                {focusHours}h<small>enfoque</small>
+                {metrics.focusHours}h<small>enfoque</small>
               </span>
             </div>
             <ul>
-              {activeProjects.slice(0, 4).map((p) => (
-                <li key={p.id}>
-                  <i className={p.color} />
+              {activeProjects.slice(0, 4).map(({ project, done, total }) => (
+                <li key={project.id}>
+                  <i className={project.color} />
                   <span>
-                    {p.name}
+                    {project.name}
                     <small>
-                      {p.done}/{p.total} tareas
+                      {done}/{total} tareas
                     </small>
                   </span>
-                  <b>{Math.round((p.total / totalProjectTasks) * 100)}%</b>
+                  <b>{Math.round((total / totalProjectTasks) * 100)}%</b>
                 </li>
               ))}
             </ul>

@@ -14,8 +14,6 @@ pub fn init(conn: &Connection) -> Result<(), String> {
         completion_rate INTEGER NOT NULL,
         color TEXT NOT NULL
       );
-
-      CREATE INDEX IF NOT EXISTS idx_sessions_date ON focus_sessions(date);
       ",
     )
     .map_err(|e| format!("Error al crear tabla focus_sessions: {e}"))

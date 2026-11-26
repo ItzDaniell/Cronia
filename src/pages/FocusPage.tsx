@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FocusSession, Task } from '../types';
 import { isTaskCompleted } from '../modules/tasks/domain/rules';
+import { downloadJson } from '../utils/exportData';
 import { Icon } from '../components/ui/Icon';
 import { PanelHeading } from '../components/ui/PanelHeading';
 
@@ -216,19 +217,29 @@ export function FocusPage({
           <PanelHeading
             title="Sesiones recientes"
             action="Exportar"
-            onAction={() => onNotify('Historial de enfoque exportado')}
+            onAction={() => {
+              downloadJson(`cronia-focus-sessions-${new Date().toISOString().slice(0, 10)}.json`, sessions);
+              onNotify('Historial de enfoque exportado (JSON)');
+            }}
           />
           <div className="recent enhanced">
-            {sessions.slice(0, 4).map((s) => (
-              <div key={s.id}>
-                <i className={s.color} />
-                <span>
-                  <strong>{s.taskTitle}</strong>
-                  {s.durationMinutes} min · {s.completedAt}
-                </span>
-                <b>{s.completionRate}%</b>
+            {sessions.length === 0 ? (
+              <div className="empty-state" style={{ padding: '18px 8px' }}>
+                <strong>Sin sesiones registradas</strong>
+                <span>Completa un ciclo de enfoque para ver tu historial.</span>
               </div>
-            ))}
+            ) : (
+              sessions.slice(0, 4).map((s) => (
+                <div key={s.id}>
+                  <i className={s.color} />
+                  <span>
+                    <strong>{s.taskTitle}</strong>
+                    {s.durationMinutes} min · {s.completedAt}
+                  </span>
+                  <b>{s.completionRate}%</b>
+                </div>
+              ))
+            )}
           </div>
         </section>
       </aside>

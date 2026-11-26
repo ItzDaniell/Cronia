@@ -13,8 +13,6 @@ pub fn init(conn: &Connection) -> Result<(), String> {
         color TEXT NOT NULL,
         enabled INTEGER NOT NULL
       );
-
-      CREATE INDEX IF NOT EXISTS idx_reminders_enabled_date ON reminders(enabled, date);
       ",
     )
     .map_err(|e| format!("Error al crear tabla reminders: {e}"))

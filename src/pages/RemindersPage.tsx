@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Reminder } from '../types';
+import { downloadJson } from '../utils/exportData';
 import { Icon } from '../components/ui/Icon';
 import { PanelHeading } from '../components/ui/PanelHeading';
 import { ReminderModal } from '../components/modals/ReminderModal';
@@ -50,45 +51,53 @@ export function RemindersPage({
           subtitle={`${reminders.filter((item) => item.enabled).length} alertas activas`}
         />
         <div className="reminder-list">
-          {reminders.map((reminder) => (
-            <div className="reminder" key={reminder.id}>
-              <div className={`reminder-icon ${reminder.color}`}>
-                <Icon name="bell" />
-              </div>
-              <div>
-                <strong>{reminder.title}</strong>
-                <span>
-                  <Icon name="calendar" size={12} />
-                  {reminder.date} · {reminder.time} · {reminder.before}
-                </span>
-              </div>
-              <button
-                type="button"
-                className={`switch ${reminder.enabled ? 'on' : ''}`}
-                onClick={() => onToggleReminder(reminder.id)}
-                aria-label="Activar recordatorio"
-              >
-                <i />
-              </button>
-              <button
-                type="button"
-                className="reminder-action"
-                onClick={() => setEditing(reminder.id)}
-                aria-label={`Editar ${reminder.title}`}
-              >
-                <Icon name="settings" size={15} />
-                Editar
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => onDeleteReminder(reminder.id)}
-                aria-label={`Eliminar ${reminder.title}`}
-              >
-                <Icon name="trash" />
-              </button>
+          {reminders.length === 0 ? (
+            <div className="empty-state">
+              <Icon name="bell" size={22} />
+              <strong>No hay recordatorios programados</strong>
+              <span>Crea uno para recibir alertas de tus actividades.</span>
             </div>
-          ))}
+          ) : (
+            reminders.map((reminder) => (
+              <div className="reminder" key={reminder.id}>
+                <div className={`reminder-icon ${reminder.color}`}>
+                  <Icon name="bell" />
+                </div>
+                <div>
+                  <strong>{reminder.title}</strong>
+                  <span>
+                    <Icon name="calendar" size={12} />
+                    {reminder.date} · {reminder.time} · {reminder.before}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={`switch ${reminder.enabled ? 'on' : ''}`}
+                  onClick={() => onToggleReminder(reminder.id)}
+                  aria-label="Activar recordatorio"
+                >
+                  <i />
+                </button>
+                <button
+                  type="button"
+                  className="reminder-action"
+                  onClick={() => setEditing(reminder.id)}
+                  aria-label={`Editar ${reminder.title}`}
+                >
+                  <Icon name="settings" size={15} />
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => onDeleteReminder(reminder.id)}
+                  aria-label={`Eliminar ${reminder.title}`}
+                >
+                  <Icon name="trash" />
+                </button>
+              </div>
+            ))
+          )}
         </div>
         <button type="button" className="inline-add large" onClick={() => setEditing('new')}>
           <Icon name="plus" />
@@ -116,7 +125,14 @@ export function RemindersPage({
         </section>
 
         <section className="panel mini-panel notification-log">
-          <PanelHeading title="Historial de envíos" action="Exportar" onAction={() => onNotify('Historial exportado')} />
+          <PanelHeading
+            title="Historial de envíos"
+            action="Exportar"
+            onAction={() => {
+              downloadJson(`cronia-recordatorios-${new Date().toISOString().slice(0, 10)}.json`, reminders);
+              onNotify('Recordatorios exportados (JSON)');
+            }}
+          />
           <div>
             {reminders.slice(0, 2).map((r) => (
               <p key={r.id}>

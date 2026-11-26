@@ -123,17 +123,20 @@ export function changeTaskStatus(
   const wasCompleted = existing.status === 'Completed';
   const isNowCompleted = nextStatus === 'Completed';
 
-  const updated: Task = {
-    ...existing,
-    status: nextStatus,
-    updatedAt: nowIso,
-    completedAt: isNowCompleted ? nowIso : null,
-  };
-
   const spawned =
     !wasCompleted && isNowCompleted
       ? createNextRecurringInstance(existing, nowIso, nextRecurrenceId)
       : null;
+
+  // Si se generó la siguiente ocurrencia recurrente, el registro completado pasa a ser histórico
+  // (sin recurrencia) para evitar que desmarcar y volver a marcar genere clones duplicados.
+  const updated: Task = {
+    ...existing,
+    status: nextStatus,
+    recurrence: spawned ? { ...DEFAULT_RECURRENCE } : existing.recurrence,
+    updatedAt: nowIso,
+    completedAt: isNowCompleted ? nowIso : null,
+  };
 
   return { updated, spawned };
 }

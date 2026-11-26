@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  AccentTone,
   AppData,
   BackupInfo,
   CalendarEvent,
@@ -12,19 +13,16 @@ import type {
 } from './types';
 import {
   DEFAULT_SETTINGS,
-  INITIAL_EVENTS,
-  INITIAL_FOCUS_SESSIONS,
-  INITIAL_PROJECTS,
-  INITIAL_REMINDERS,
-  INITIAL_TASKS,
+  EMPTY_APP_DATA,
   MODULE_ITEMS,
   PAGE_DESCRIPTIONS,
-  WEEK_DAYS_DEFAULT,
 } from './data/initialData';
 import { persistence } from './services/persistence';
 import { taskService, TaskValidationError } from './modules/tasks/application/taskService';
 import type { CreateTaskDto, UpdateTaskDto } from './modules/tasks/application/dtos';
 import { isTaskCompleted, isTaskDeleted, toLocalDateKey } from './modules/tasks/domain/rules';
+import { computeWeeklyStats } from './utils/analytics';
+import { playCompletionChime } from './utils/sound';
 import type { TaskStatus } from './types';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -40,22 +38,13 @@ import { FocusPage } from './pages/FocusPage';
 import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
 
-const DEFAULT_APP_DATA: AppData = {
-  settings: DEFAULT_SETTINGS,
-  tasks: INITIAL_TASKS,
-  projects: INITIAL_PROJECTS,
-  events: INITIAL_EVENTS,
-  reminders: INITIAL_REMINDERS,
-  sessions: INITIAL_FOCUS_SESSIONS,
-};
-
 export default function App() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
-  const [events, setEvents] = useState<CalendarEvent[]>(INITIAL_EVENTS);
-  const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
-  const [sessions, setSessions] = useState<FocusSession[]>(INITIAL_FOCUS_SESSIONS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [sessions, setSessions] = useState<FocusSession[]>([]);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
 
   const [active, setActive] = useState<ModuleName>('Dashboard');
@@ -85,7 +74,7 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     persistence
-      .loadAppData(DEFAULT_APP_DATA)
+      .loadAppData(EMPTY_APP_DATA)
       .then((data) => {
         if (cancelled) return;
         setSettings(data.settings);
@@ -116,9 +105,17 @@ export default function App() {
 
   useEffect(() => {
     if (!timerRunning) return;
-    const id = window.setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 25 * 60)), 1000);
+    const id = window.setInterval(() => {
+      setSeconds((s) => {
+        if (s > 1) return s - 1;
+        setTimerRunning(false);
+        if (settings.soundEnabled) playCompletionChime();
+        notify('¡Sesión de enfoque completada!');
+        return 25 * 60;
+      });
+    }, 1000);
     return () => window.clearInterval(id);
-  }, [timerRunning]);
+  }, [timerRunning, settings.soundEnabled]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -297,20 +294,51 @@ export default function App() {
       });
   };
 
-  const handleCreateProject = (name: string, desc: string) => {
+  const handleSaveProject = (draft: {
+    id?: number;
+    name: string;
+    desc: string;
+    color: AccentTone;
+    date: string;
+  }) => {
+    if (draft.id) {
+      const existing = projects.find((p) => p.id === draft.id);
+      if (!existing) return;
+      const updated: Project = {
+        ...existing,
+        name: draft.name,
+        desc: draft.desc,
+        color: draft.color,
+        date: draft.date,
+      };
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      persistAsync(persistence.upsertProject(updated));
+      notify('Proyecto actualizado');
+      return;
+    }
+
     const created: Project = {
       id: Date.now(),
-      name,
-      desc,
-      color: 'violet',
+      name: draft.name,
+      desc: draft.desc,
+      color: draft.color,
       done: 0,
-      total: 1,
-      date: 'Sin fecha',
+      total: 0,
+      date: draft.date,
       archived: false,
     };
     setProjects((prev) => [...prev, created]);
     persistAsync(persistence.upsertProject(created));
     notify('Nuevo proyecto creado');
+  };
+
+  const handleDeleteProject = (id: number) => {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    setTasks((prev) =>
+      prev.map((t) => (t.projectId === id ? { ...t, projectId: null, project: 'Sin proyecto' } : t)),
+    );
+    persistAsync(persistence.deleteProject(id));
+    notify('Proyecto eliminado');
   };
 
   const handleToggleArchiveProject = (id: number) => {
@@ -394,17 +422,18 @@ export default function App() {
   };
 
   const handleResetAllData = () => {
-    setTasks(INITIAL_TASKS);
-    setProjects(INITIAL_PROJECTS);
-    setEvents(INITIAL_EVENTS);
-    setReminders(INITIAL_REMINDERS);
-    setSessions(INITIAL_FOCUS_SESSIONS);
+    setTasks([]);
+    setProjects([]);
+    setEvents([]);
+    setReminders([]);
+    setSessions([]);
     setSettings(DEFAULT_SETTINGS);
-    persistAsync(persistence.resetAllData(DEFAULT_APP_DATA));
+    persistAsync(persistence.resetAllData(EMPTY_APP_DATA));
     notify('Datos locales restablecidos');
   };
 
   const activeTasks = useMemo(() => tasks.filter((t) => !isTaskDeleted(t)), [tasks]);
+  const weekDays = useMemo(() => computeWeeklyStats(activeTasks, sessions, now), [activeTasks, sessions, now]);
   const completedCount = activeTasks.filter((t) => isTaskCompleted(t)).length;
   const activeRemindersCount = reminders.filter((r) => r.enabled).length;
   const userInitials =
@@ -425,7 +454,7 @@ export default function App() {
             tasks={activeTasks}
             projects={projects}
             events={events}
-            weekDays={WEEK_DAYS_DEFAULT}
+            weekDays={weekDays}
             now={now}
             timerRunning={timerRunning}
             onToggleTask={handleToggleTask}
@@ -452,9 +481,11 @@ export default function App() {
         return (
           <ProjectsPage
             projects={projects}
+            tasks={activeTasks}
             userInitials={userInitials}
-            onCreateProject={handleCreateProject}
+            onSaveProject={handleSaveProject}
             onToggleArchive={handleToggleArchiveProject}
+            onDeleteProject={handleDeleteProject}
             onNavigate={openModule}
           />
         );
@@ -462,6 +493,7 @@ export default function App() {
         return (
           <CalendarPage
             events={events}
+            tasks={activeTasks}
             onAddEvent={(ev) => {
               const created: CalendarEvent = { id: Date.now(), ...ev };
               setEvents((prev) => [...prev, created]);
@@ -478,6 +510,7 @@ export default function App() {
               persistAsync(persistence.deleteEvent(id));
               notify('Evento eliminado del calendario');
             }}
+            onEditTask={openEditTaskModal}
           />
         );
       case 'Recordatorios':
@@ -509,7 +542,7 @@ export default function App() {
             tasks={activeTasks}
             projects={projects}
             sessions={sessions}
-            weekDays={WEEK_DAYS_DEFAULT}
+            weekDays={weekDays}
           />
         );
       case 'Configuración':
@@ -525,7 +558,7 @@ export default function App() {
           />
         );
     }
-  }, [active, activeTasks, backups, events, now, projects, reminders, seconds, sessions, settings, tasks, timerRunning, userInitials]);
+  }, [active, activeTasks, backups, events, now, projects, reminders, seconds, sessions, settings, tasks, timerRunning, userInitials, weekDays]);
 
   return (
     <div className="app">
