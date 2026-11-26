@@ -1,7 +1,11 @@
 import type { RefObject } from 'react';
-import type { IconName, ModuleName, ModuleNavItem, Project, Task } from '../../types';
-import { STATUS_LABELS } from '../../modules/tasks/domain/rules';
-import { Icon } from '../ui/Icon';
+import { AnimatePresence, motion } from 'motion/react';
+import { ChevronRight, Menu, Moon, Plus, Search, Sun, X } from 'lucide-react';
+import type { IconName, ModuleName, ModuleNavItem, Project, Task } from '@/types';
+import { STATUS_LABELS } from '@/modules/tasks/domain/rules';
+import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface SearchResult {
   label: string;
@@ -11,6 +15,7 @@ interface SearchResult {
 }
 
 interface HeaderProps {
+  active: ModuleName;
   query: string;
   onQueryChange: (q: string) => void;
   searchRef: RefObject<HTMLInputElement | null>;
@@ -25,6 +30,7 @@ interface HeaderProps {
 }
 
 export function Header({
+  active,
   query,
   onQueryChange,
   searchRef,
@@ -45,7 +51,9 @@ export function Header({
           .map((item) => ({ label: item.name, meta: 'Módulo', module: item.name, icon: item.icon })),
         ...tasks
           .filter((task) =>
-            `${task.title} ${task.project} ${task.category} ${task.tags.join(' ')}`.toLowerCase().includes(q),
+            `${task.title} ${task.project} ${task.category} ${task.tags.join(' ')}`
+              .toLowerCase()
+              .includes(q),
           )
           .map((task) => ({
             label: task.title,
@@ -57,7 +65,7 @@ export function Header({
           .filter((project) => `${project.name} ${project.desc}`.toLowerCase().includes(q))
           .map((project) => ({
             label: project.name,
-            meta: `Proyecto · ${project.done}/${project.total}`,
+            meta: 'Proyecto',
             module: 'Proyectos' as ModuleName,
             icon: 'folder' as IconName,
           })),
@@ -65,69 +73,107 @@ export function Header({
     : [];
 
   return (
-    <header>
-      <button type="button" className="square mobile-menu" onClick={onOpenMenu} aria-label="Abrir menú">
-        <Icon name="menu" />
-      </button>
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-[var(--line)] bg-[var(--bg)]/85 px-5 backdrop-blur-md lg:px-8">
+      <div className="flex items-center gap-3 min-w-0">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={onOpenMenu}
+          aria-label="Abrir menú"
+          className="h-8 w-8 lg:hidden shrink-0"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
 
-      <div className="search-wrap">
-        <div className="search">
-          <Icon name="search" />
-          <input
-            ref={searchRef}
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Buscar tareas, proyectos o módulos..."
-          />
-          <kbd>Ctrl K</kbd>
-          {query && (
-            <button type="button" onClick={() => onQueryChange('')} aria-label="Limpiar búsqueda">
-              <Icon name="close" size={14} />
-            </button>
-          )}
+        <div className="hidden items-center gap-1.5 text-xs sm:flex">
+          <span className="font-medium text-[var(--muted)]">Cronia</span>
+          <ChevronRight className="h-3.5 w-3.5 text-[var(--muted)]/60" />
+          <span className="font-semibold text-[var(--text)]">{active}</span>
         </div>
-
-        {query && (
-          <div className="search-results">
-            {searchResults.length ? (
-              searchResults.map((result, index) => (
-                <button
-                  type="button"
-                  key={`${result.label}-${index}`}
-                  onClick={() => {
-                    onOpenModule(result.module);
-                    onQueryChange('');
-                  }}
-                >
-                  <span>
-                    <Icon name={result.icon} />
-                  </span>
-                  <div>
-                    <strong>{result.label}</strong>
-                    <small>{result.meta}</small>
-                  </div>
-                  <Icon name="arrow" size={14} />
-                </button>
-              ))
-            ) : (
-              <p>No se encontraron resultados para “{query}”</p>
-            )}
-          </div>
-        )}
       </div>
 
-      <div className="top-actions">
-        <button type="button" className="square" onClick={onToggleTheme} aria-label="Cambiar tema">
-          <Icon name={dark ? 'sun' : 'moon'} />
-        </button>
-        <button type="button" className="square bell" onClick={() => onOpenModule('Recordatorios')} aria-label="Recordatorios">
-          <Icon name="bell" />
-          <i />
-        </button>
-        <button type="button" className="primary" onClick={onOpenNewTask}>
-          <Icon name="plus" size={16} />
-          Nueva tarea
-        </button>
+      {/* Centered Command Search */}
+      <div className="relative w-full max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted)]" />
+        <Input
+          ref={searchRef}
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Buscar o ir a..."
+          className="h-8.5 rounded-lg bg-[var(--surface)] pl-8.5 pr-14 text-xs"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={() => onQueryChange('')}
+            aria-label="Limpiar búsqueda"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--muted)] hover:text-[var(--text)]"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : (
+          <kbd className="font-mono-num pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-[var(--line)] bg-[var(--surface-2)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--muted)] sm:inline-block">
+            Ctrl K
+          </kbd>
+        )}
+
+        <AnimatePresence>
+          {query && (
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.14 }}
+              className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-1.5 shadow-2xl"
+            >
+              {searchResults.length ? (
+                searchResults.map((result, index) => (
+                  <button
+                    type="button"
+                    key={`${result.label}-${index}`}
+                    onClick={() => {
+                      onOpenModule(result.module);
+                      onQueryChange('');
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--surface-2)]"
+                  >
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[var(--accent-soft)] text-[var(--accent)]">
+                      <Icon name={result.icon} size={14} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="m-0 truncate text-xs font-semibold text-[var(--text)]">{result.label}</p>
+                      <p className="m-0 truncate text-[11px] text-[var(--muted)]">{result.meta}</p>
+                    </div>
+                    <ChevronRight className="h-3.5 w-3.5 text-[var(--muted)]" />
+                  </button>
+                ))
+              ) : (
+                <p className="m-0 py-4 text-center text-xs text-[var(--muted)]">
+                  Sin resultados para “{query}”
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Right Quick Actions */}
+      <div className="flex items-center gap-2 shrink-0">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8.5 w-8.5"
+          onClick={onToggleTheme}
+          aria-label="Cambiar tema"
+        >
+          {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+        <Button type="button" size="sm" onClick={onOpenNewTask} className="h-8.5">
+          <Plus className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Nueva tarea</span>
+        </Button>
       </div>
     </header>
   );

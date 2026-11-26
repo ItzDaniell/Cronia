@@ -1,7 +1,26 @@
 import { useState } from 'react';
-import type { AccentTone, CalendarEvent } from '../../types';
-import { toLocalDateKey } from '../../modules/tasks/domain/rules';
-import { Icon } from '../ui/Icon';
+import type { AccentTone, CalendarEvent } from '@/types';
+import { toLocalDateKey } from '@/modules/tasks/domain/rules';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface EventModalProps {
   eventToEdit?: CalendarEvent | null;
@@ -52,81 +71,81 @@ export function EventModal({
   };
 
   return (
-    <div className="modal-layer">
-      <button type="button" className="modal-bg" onClick={onClose} aria-label="Cerrar modal" />
-      <form className="modal" onSubmit={handleSubmit} noValidate>
-        <header>
-          <div>
-            <span>{isEditing ? 'EDITAR EVENTO' : 'NUEVO EVENTO'}</span>
-            <h2>{isEditing ? 'Actualizar actividad' : 'Programar evento'}</h2>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogDescription>{isEditing ? 'EDITAR EVENTO' : 'NUEVO EVENTO'}</DialogDescription>
+          <DialogTitle>{isEditing ? 'Actualizar actividad' : 'Programar evento'}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div className="space-y-1.5">
+            <Label htmlFor="ev-title">Título *</Label>
+            <Input
+              id="ev-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ej. Reunión de revisión semanal"
+              autoFocus
+            />
+            {error && <small className="field-error">{error}</small>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Cerrar">
-            <Icon name="close" />
-          </button>
-        </header>
 
-        <label>
-          Título *
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ej. Reunión de revisión semanal"
-            autoFocus
-          />
-          {error && <small className="field-error">{error}</small>}
-        </label>
-
-        <div className="form-row">
-          <label>
-            Fecha
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </label>
-          <label>
-            Hora
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-          </label>
-        </div>
-
-        <div className="form-row">
-          <label>
-            Tipo
-            <select value={type} onChange={(e) => setType(e.target.value as CalendarEvent['type'])}>
-              {EVENT_TYPES.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Color
-            <div className="colors" style={{ paddingTop: 6 }}>
-              {COLORS.map((tone) => (
-                <button
-                  type="button"
-                  key={tone}
-                  className={tone}
-                  onClick={() => setColor(tone)}
-                  aria-label={`Color ${tone}`}
-                  style={{
-                    outline: color === tone ? '2px solid var(--text)' : 'none',
-                    outlineOffset: 2,
-                  }}
-                />
-              ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Fecha</Label>
+              <DatePicker value={date} onChange={setDate} clearable={false} />
             </div>
-          </label>
-        </div>
+            <div className="space-y-1.5">
+              <Label>Hora</Label>
+              <TimePicker value={time} onChange={setTime} />
+            </div>
+          </div>
 
-        <footer>
-          <button type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="primary" type="submit">
-            {isEditing ? 'Guardar cambios' : 'Crear evento'}
-          </button>
-        </footer>
-      </form>
-    </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Tipo</Label>
+              <Select value={type} onValueChange={(v) => setType(v as CalendarEvent['type'])}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EVENT_TYPES.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Color</Label>
+              <div className="colors pt-1.5">
+                {COLORS.map((tone) => (
+                  <button
+                    type="button"
+                    key={tone}
+                    className={tone}
+                    onClick={() => setColor(tone)}
+                    aria-label={`Color ${tone}`}
+                    style={{
+                      outline: color === tone ? '2px solid var(--text)' : 'none',
+                      outlineOffset: 2,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit">{isEditing ? 'Guardar cambios' : 'Crear evento'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

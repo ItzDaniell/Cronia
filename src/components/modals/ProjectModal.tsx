@@ -1,6 +1,18 @@
 import { useState } from 'react';
-import type { AccentTone, Project } from '../../types';
-import { Icon } from '../ui/Icon';
+import type { AccentTone, Project } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface ProjectModalProps {
   projectToEdit?: Project | null;
@@ -15,7 +27,9 @@ export function ProjectModal({ projectToEdit = null, onClose, onSave }: ProjectM
   const [name, setName] = useState(projectToEdit?.name ?? '');
   const [desc, setDesc] = useState(projectToEdit?.desc ?? '');
   const [color, setColor] = useState<AccentTone>(projectToEdit?.color ?? 'violet');
-  const [date, setDate] = useState(projectToEdit?.date && projectToEdit.date !== 'Sin fecha' ? projectToEdit.date : '');
+  const [date, setDate] = useState(
+    projectToEdit?.date && projectToEdit.date !== 'Sin fecha' ? projectToEdit.date : '',
+  );
   const [error, setError] = useState('');
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -36,73 +50,73 @@ export function ProjectModal({ projectToEdit = null, onClose, onSave }: ProjectM
   };
 
   return (
-    <div className="modal-layer">
-      <button type="button" className="modal-bg" onClick={onClose} aria-label="Cerrar modal" />
-      <form className="modal" onSubmit={handleSubmit} noValidate>
-        <header>
-          <div>
-            <span>{isEditing ? 'EDITAR PROYECTO' : 'NUEVO PROYECTO'}</span>
-            <h2>{isEditing ? 'Actualizar proyecto' : 'Crear proyecto'}</h2>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogDescription>{isEditing ? 'EDITAR PROYECTO' : 'NUEVO PROYECTO'}</DialogDescription>
+          <DialogTitle>{isEditing ? 'Actualizar proyecto' : 'Crear proyecto'}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div className="space-y-1.5">
+            <Label htmlFor="proj-name">Nombre *</Label>
+            <Input
+              id="proj-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej. Lanzamiento Cronia v1.0"
+              autoFocus
+            />
+            {error && <small className="field-error">{error}</small>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Cerrar">
-            <Icon name="close" />
-          </button>
-        </header>
 
-        <label>
-          Nombre *
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ej. Lanzamiento Cronia v1.0"
-            autoFocus
-          />
-          {error && <small className="field-error">{error}</small>}
-        </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="proj-desc">Descripción</Label>
+            <Textarea
+              id="proj-desc"
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Objetivo principal y alcance del proyecto..."
+            />
+          </div>
 
-        <label>
-          Descripción
-          <textarea
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="Objetivo principal y alcance del proyecto..."
-          />
-        </label>
-
-        <div className="form-row">
-          <label>
-            Fecha objetivo (opcional)
-            <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(date) ? date : ''} onChange={(e) => setDate(e.target.value)} />
-          </label>
-          <label>
-            Color
-            <div className="colors" style={{ paddingTop: 6 }}>
-              {COLORS.map((tone) => (
-                <button
-                  type="button"
-                  key={tone}
-                  className={tone}
-                  onClick={() => setColor(tone)}
-                  aria-label={`Color ${tone}`}
-                  style={{
-                    outline: color === tone ? '2px solid var(--text)' : 'none',
-                    outlineOffset: 2,
-                  }}
-                />
-              ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Fecha objetivo (opcional)</Label>
+              <DatePicker
+                value={/^\d{4}-\d{2}-\d{2}$/.test(date) ? date : ''}
+                onChange={setDate}
+                placeholder="Sin fecha objetivo"
+              />
             </div>
-          </label>
-        </div>
+            <div className="space-y-1.5">
+              <Label>Color</Label>
+              <div className="colors pt-1.5">
+                {COLORS.map((tone) => (
+                  <button
+                    type="button"
+                    key={tone}
+                    className={tone}
+                    onClick={() => setColor(tone)}
+                    aria-label={`Color ${tone}`}
+                    style={{
+                      outline: color === tone ? '2px solid var(--text)' : 'none',
+                      outlineOffset: 2,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
 
-        <footer>
-          <button type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="primary" type="submit">
-            {isEditing ? 'Guardar cambios' : 'Crear proyecto'}
-          </button>
-        </footer>
-      </form>
-    </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit">{isEditing ? 'Guardar cambios' : 'Crear proyecto'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

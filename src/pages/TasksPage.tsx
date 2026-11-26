@@ -1,15 +1,25 @@
-import type { Task, TaskPriority, TaskSortField, TaskStatus, TaskView } from '../types';
+import { ArrowUpDown, LayoutGrid, List, Plus, Search } from 'lucide-react';
+import type { Task, TaskPriority, TaskSortField, TaskStatus, TaskView } from '@/types';
 import {
   PRIORITY_LABELS,
   STATUS_LABELS,
   TASK_PRIORITIES,
   TASK_STATUSES,
-} from '../modules/tasks/domain/rules';
-import { useTasksViewModel } from '../modules/tasks/presentation/useTasksViewModel';
-import { Icon } from '../components/ui/Icon';
-import { PanelHeading } from '../components/ui/PanelHeading';
-import { TaskRows } from '../components/tasks/TaskRows';
-import { KanbanBoard } from '../components/tasks/KanbanBoard';
+} from '@/modules/tasks/domain/rules';
+import { useTasksViewModel } from '@/modules/tasks/presentation/useTasksViewModel';
+import { Card } from '@/components/ui/card';
+import { MetricCard } from '@/components/ui/MetricCard';
+import { TaskRows } from '@/components/tasks/TaskRows';
+import { KanbanBoard } from '@/components/tasks/KanbanBoard';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface TasksPageProps {
   tasks: Task[];
@@ -39,9 +49,6 @@ export function TasksPage({
   const vm = useTasksViewModel(tasks);
   const { summary } = vm;
 
-  const pct = (count: number) =>
-    summary.totalActive > 0 ? `${Math.round((count / summary.totalActive) * 100)}%` : '0%';
-
   const tabCount = (tab: TaskView): number | null => {
     if (tab === 'Todas') return summary.totalActive;
     if (tab === 'Hoy') return summary.dueToday;
@@ -52,157 +59,225 @@ export function TasksPage({
   };
 
   return (
-    <div className="module-layout">
-      <section className="panel module-main">
-        <div className="toolbar task-toolbar">
-          <div className="tabs">
+    <div className="space-y-5">
+      {/* Top KPI strip — frees 100% width for the task table & Kanban */}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          icon="list"
+          tone="violet"
+          label="Pendientes"
+          value={summary.pending + summary.inProgress}
+          note={`${summary.inProgress} en progreso`}
+        />
+        <MetricCard
+          icon="check"
+          tone="green"
+          label="Completadas"
+          value={summary.completed}
+          note={`${summary.completionPct}% del total`}
+        />
+        <MetricCard
+          icon="flag"
+          tone="orange"
+          label="Vencidas"
+          value={summary.overdue}
+          note={summary.overdue > 0 ? 'Requieren atención' : 'Todo al día'}
+        />
+        <MetricCard
+          icon="target"
+          tone="blue"
+          label="Para hoy"
+          value={summary.dueToday}
+          note={`${summary.byPriority.Urgent} urgentes`}
+        />
+      </div>
+
+      {/* Full-width workspace card */}
+      <Card className="overflow-hidden">
+        {/* View tabs + List/Kanban switcher */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3 sm:px-5">
+          <div className="flex flex-wrap items-center gap-1">
             {VIEW_TABS.map((tab) => {
               const count = tabCount(tab);
+              const active = vm.view === tab;
               return (
                 <button
                   type="button"
-                  className={vm.view === tab ? 'active' : ''}
-                  onClick={() => vm.setView(tab)}
                   key={tab}
+                  onClick={() => vm.setView(tab)}
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium transition-colors ${
+                    active
+                      ? 'bg-[var(--accent-soft)] font-semibold text-[var(--accent)]'
+                      : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
+                  }`}
                 >
                   {tab}
-                  {count !== null && <span>{count}</span>}
+                  {count !== null && (
+                    <span className="rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[11px] font-bold text-[var(--muted)]">
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
-          <div className="view-buttons">
-            <button
-              type="button"
-              className={vm.displayMode === 'Lista' ? 'active' : ''}
-              onClick={() => vm.setDisplayMode('Lista')}
-            >
-              <Icon name="list" />
-              Lista
-            </button>
-            <button
-              type="button"
-              className={vm.displayMode === 'Kanban' ? 'active' : ''}
-              onClick={() => vm.setDisplayMode('Kanban')}
-              disabled={vm.view === 'Papelera'}
-            >
-              <Icon name="grid" />
-              Kanban
-            </button>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg bg-[var(--surface-2)] p-1">
+              <button
+                type="button"
+                onClick={() => vm.setDisplayMode('Lista')}
+                className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all ${
+                  vm.displayMode === 'Lista'
+                    ? 'bg-[var(--surface)] text-[var(--accent)] shadow-xs'
+                    : 'text-[var(--muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                <List className="h-3.5 w-3.5" />
+                Lista
+              </button>
+              <button
+                type="button"
+                disabled={vm.view === 'Papelera'}
+                onClick={() => vm.setDisplayMode('Kanban')}
+                className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all disabled:opacity-40 ${
+                  vm.displayMode === 'Kanban'
+                    ? 'bg-[var(--surface)] text-[var(--accent)] shadow-xs'
+                    : 'text-[var(--muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Kanban
+              </button>
+            </div>
+
+            {vm.view !== 'Papelera' && (
+              <Button type="button" size="sm" onClick={() => onOpenNewTask('Pending')}>
+                <Plus className="h-4 w-4" />
+                Añadir
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="task-filters-bar">
-          <div className="inline-search">
-            <Icon name="search" size={14} />
-            <input
+        {/* Spacious filter bar */}
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-[var(--surface-2)]/60 px-4 py-3 sm:px-5">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
+            <Input
               value={vm.search}
               onChange={(e) => vm.setSearch(e.target.value)}
               placeholder="Buscar tareas, etiquetas o subtareas..."
+              className="bg-[var(--surface)] pl-9"
             />
           </div>
 
-          <select
+          <Select
             value={vm.priorityFilter}
-            onChange={(e) => vm.setPriorityFilter(e.target.value as TaskPriority | 'All')}
-            aria-label="Filtrar por prioridad"
+            onValueChange={(v) => vm.setPriorityFilter(v as TaskPriority | 'All')}
           >
-            <option value="All">Prioridad: Todas</option>
-            {TASK_PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABELS[p]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-auto min-w-[155px] bg-[var(--surface)]">
+              <SelectValue placeholder="Prioridad" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">Prioridad: Todas</SelectItem>
+              {TASK_PRIORITIES.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {PRIORITY_LABELS[p]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
+          <Select
             value={vm.statusFilter}
-            onChange={(e) => vm.setStatusFilter(e.target.value as TaskStatus | 'All')}
-            aria-label="Filtrar por estado"
+            onValueChange={(v) => vm.setStatusFilter(v as TaskStatus | 'All')}
           >
-            <option value="All">Estado: Todos</option>
-            {TASK_STATUSES.map((st) => (
-              <option key={st} value={st}>
-                {STATUS_LABELS[st]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-auto min-w-[148px] bg-[var(--surface)]">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">Estado: Todos</SelectItem>
+              {TASK_STATUSES.map((st) => (
+                <SelectItem key={st} value={st}>
+                  {STATUS_LABELS[st]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={vm.categoryFilter}
-            onChange={(e) => vm.setCategoryFilter(e.target.value)}
-            aria-label="Filtrar por categoría"
-          >
-            <option value="All">Categoría: Todas</option>
-            {vm.availableCategories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+          <Select value={vm.categoryFilter} onValueChange={vm.setCategoryFilter}>
+            <SelectTrigger className="w-auto min-w-[160px] bg-[var(--surface)]">
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">Categoría: Todas</SelectItem>
+              {vm.availableCategories.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {vm.availableTags.length > 0 && (
-            <select
-              value={vm.tagFilter}
-              onChange={(e) => vm.setTagFilter(e.target.value)}
-              aria-label="Filtrar por etiqueta"
-            >
-              <option value="All">Etiqueta: Todas</option>
-              {vm.availableTags.map((tag) => (
-                <option key={tag} value={tag}>
-                  #{tag}
-                </option>
-              ))}
-            </select>
+            <Select value={vm.tagFilter} onValueChange={vm.setTagFilter}>
+              <SelectTrigger className="w-auto min-w-[150px] bg-[var(--surface)]">
+                <SelectValue placeholder="Etiqueta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">Etiqueta: Todas</SelectItem>
+                {vm.availableTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>
+                    #{tag}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
 
-          <select
-            value={vm.sortBy}
-            onChange={(e) => vm.setSortBy(e.target.value as TaskSortField)}
-            aria-label="Ordenar por"
-          >
-            <option value="dueDate">Orden: Vencimiento</option>
-            <option value="priority">Orden: Prioridad</option>
-            <option value="title">Orden: Título</option>
-            <option value="estimatedMinutes">Orden: Tiempo</option>
-            <option value="createdAt">Orden: Creación</option>
-          </select>
+          <Select value={vm.sortBy} onValueChange={(v) => vm.setSortBy(v as TaskSortField)}>
+            <SelectTrigger className="w-auto min-w-[172px] bg-[var(--surface)]">
+              <SelectValue placeholder="Ordenar por" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="dueDate">Orden: Vencimiento</SelectItem>
+              <SelectItem value="priority">Orden: Prioridad</SelectItem>
+              <SelectItem value="title">Orden: Título</SelectItem>
+              <SelectItem value="estimatedMinutes">Orden: Tiempo</SelectItem>
+              <SelectItem value="createdAt">Orden: Creación</SelectItem>
+            </SelectContent>
+          </Select>
 
-          <button
+          <Button
             type="button"
-            className="setting-action"
+            variant="outline"
+            size="sm"
+            className="h-9 bg-[var(--surface)]"
             onClick={vm.toggleSortDirection}
-            title="Cambiar dirección de orden"
           >
-            {vm.sortDirection === 'asc' ? '↑ Asc' : '↓ Desc'}
-          </button>
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            {vm.sortDirection === 'asc' ? 'Asc' : 'Desc'}
+          </Button>
 
           {vm.hasActiveFilters && (
-            <button type="button" className="setting-action" onClick={vm.resetFilters}>
+            <Button type="button" variant="ghost" size="sm" className="h-9" onClick={vm.resetFilters}>
               Limpiar
-            </button>
+            </Button>
           )}
         </div>
 
         {vm.displayMode === 'Lista' || vm.view === 'Papelera' ? (
-          <>
-            <div className="list-label task-list-label">
-              <span>TAREAS ({vm.filteredTasks.length})</span>
-              <span>ESTADO</span>
-              <span>PRIORIDAD</span>
-              <span>FECHA</span>
-            </div>
-            <TaskRows
-              tasks={vm.filteredTasks}
-              onToggleTask={onToggleTask}
-              onChangeStatus={onChangeStatus}
-              onEditTask={onEditTask}
-              onDeleteTask={onDeleteTask}
-              onRestoreTask={onRestoreTask}
-              onPermanentDeleteTask={onPermanentDeleteTask}
-              onToggleSubtask={onToggleSubtask}
-            />
-          </>
+          <TaskRows
+            tasks={vm.filteredTasks}
+            onToggleTask={onToggleTask}
+            onChangeStatus={onChangeStatus}
+            onEditTask={onEditTask}
+            onDeleteTask={onDeleteTask}
+            onRestoreTask={onRestoreTask}
+            onPermanentDeleteTask={onPermanentDeleteTask}
+            onToggleSubtask={onToggleSubtask}
+          />
         ) : (
           <KanbanBoard
             tasks={vm.filteredTasks}
@@ -211,75 +286,7 @@ export function TasksPage({
             onEditTask={onEditTask}
           />
         )}
-
-        {vm.view !== 'Papelera' && (
-          <button type="button" className="inline-add large" onClick={() => onOpenNewTask('Pending')}>
-            <Icon name="plus" />
-            Añadir una tarea
-          </button>
-        )}
-      </section>
-
-      <aside className="module-side">
-        <section className="panel mini-panel">
-          <PanelHeading title="Resumen" />
-          <div className="donut-wrap">
-            <div className="donut">
-              <span>
-                {summary.completionPct}%<small>hecho</small>
-              </span>
-            </div>
-            <ul>
-              <li>
-                <i className="violet" />
-                Pendientes <b>{summary.pending}</b>
-              </li>
-              <li>
-                <i className="blue" />
-                En progreso <b>{summary.inProgress}</b>
-              </li>
-              <li>
-                <i className="green" />
-                Completadas <b>{summary.completed}</b>
-              </li>
-              <li>
-                <i className="orange" />
-                Vencidas <b>{summary.overdue}</b>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <section className="panel mini-panel">
-          <PanelHeading title="Por prioridad" />
-          <div className="progress-list">
-            <label>
-              Urgente <span>{summary.byPriority.Urgent}</span>
-              <i>
-                <em style={{ width: pct(summary.byPriority.Urgent) }} />
-              </i>
-            </label>
-            <label>
-              Alta <span>{summary.byPriority.High}</span>
-              <i>
-                <em style={{ width: pct(summary.byPriority.High) }} />
-              </i>
-            </label>
-            <label>
-              Media <span>{summary.byPriority.Medium}</span>
-              <i>
-                <em style={{ width: pct(summary.byPriority.Medium) }} />
-              </i>
-            </label>
-            <label>
-              Baja <span>{summary.byPriority.Low}</span>
-              <i>
-                <em style={{ width: pct(summary.byPriority.Low) }} />
-              </i>
-            </label>
-          </div>
-        </section>
-      </aside>
+      </Card>
     </div>
   );
 }

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
-import type { AccentTone, CalendarEvent, Task } from '../types';
-import { isTaskDeleted, toLocalDateKey } from '../modules/tasks/domain/rules';
-import { Icon } from '../components/ui/Icon';
-import { EventModal } from '../components/modals/EventModal';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react';
+import type { AccentTone, CalendarEvent, Task } from '@/types';
+import { isTaskDeleted, toLocalDateKey } from '@/modules/tasks/domain/rules';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { EventModal } from '@/components/modals/EventModal';
 
 interface CalendarPageProps {
   events: CalendarEvent[];
@@ -134,88 +136,123 @@ export function CalendarPage({
   };
 
   return (
-    <div className="calendar-layout">
-      <section className="panel calendar-panel">
-        <div className="calendar-toolbar">
-          <div>
-            <button type="button" onClick={() => move(-1)} aria-label="Anterior">
-              <Icon name="arrow" />
-            </button>
-            <h2 style={{ textTransform: 'capitalize' }}>{titleLabel}</h2>
-            <button type="button" className="right" onClick={() => move(1)} aria-label="Siguiente">
-              <Icon name="arrow" />
-            </button>
-            <button
+    <div className={`grid grid-cols-1 gap-5 ${selected ? 'xl:grid-cols-12' : ''}`}>
+      <Card className={`overflow-hidden ${selected ? 'xl:col-span-9' : ''}`}>
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-5 py-3.5">
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => move(-1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="m-0 min-w-[160px] text-center font-['Manrope'] text-base font-bold capitalize">
+              {titleLabel}
+            </h2>
+            <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => move(1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
               type="button"
-              className="today-btn"
+              variant="outline"
+              size="sm"
               onClick={() => setCursor(new Date(today.getFullYear(), today.getMonth(), today.getDate()))}
             >
               Hoy
-            </button>
+            </Button>
           </div>
-          <div className="view-switch">
-            {(['Mes', 'Semana', 'Día'] as const).map((item) => (
-              <button type="button" className={view === item ? 'active' : ''} onClick={() => setView(item)} key={item}>
-                {item}
-              </button>
-            ))}
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg bg-[var(--surface-2)] p-1">
+              {(['Mes', 'Semana', 'Día'] as const).map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  onClick={() => setView(item)}
+                  className={`h-7 rounded-md px-3 text-xs font-semibold transition-all ${
+                    view === item
+                      ? 'bg-[var(--surface)] text-[var(--accent)] shadow-xs'
+                      : 'text-[var(--muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setEditingEvent(null);
+                setModalOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Evento
+            </Button>
           </div>
         </div>
 
-        <div className="calendar-filters">
-          <span>Mostrar:</span>
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-[var(--line)] bg-[var(--surface-2)]/50 px-5 py-2.5">
+          <span className="mr-1 text-xs font-semibold text-[var(--muted)]">Mostrar:</span>
           {['Todos', 'Trabajo', 'Enfoque', 'Entrega', 'Tarea', 'Evento'].map((item) => (
-            <button type="button" className={filter === item ? 'active' : ''} onClick={() => setFilter(item)} key={item}>
+            <button
+              type="button"
+              key={item}
+              onClick={() => setFilter(item)}
+              className={`h-7 rounded-full border px-3 text-xs font-medium transition-colors ${
+                filter === item
+                  ? 'border-[var(--accent)] bg-[var(--accent-soft)] font-semibold text-[var(--accent)]'
+                  : 'border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--text)]'
+              }`}
+            >
               {item}
             </button>
           ))}
-          <button
-            type="button"
-            className="calendar-add"
-            onClick={() => {
-              setEditingEvent(null);
-              setModalOpen(true);
-            }}
-          >
-            <Icon name="plus" />
-            Evento
-          </button>
         </div>
 
         {view === 'Mes' ? (
           <>
-            <div className="calendar-days">
+            <div className="grid grid-cols-7 border-b border-[var(--line)] bg-[var(--surface-2)]/70 py-2 text-center text-[11px] font-bold text-[var(--muted)]">
               {['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'].map((day) => (
                 <span key={day}>{day}</span>
               ))}
             </div>
-            <div className="calendar-grid">
+            <div className="grid grid-cols-7">
               {cells.map((day, index) => {
-                const cellDate =
-                  day > 0 && day <= daysInMonth
-                    ? `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                    : '';
+                const isOutside = day < 1 || day > daysInMonth;
+                const isToday = isCurrentMonth && day === today.getDate();
+                const cellDate = !isOutside
+                  ? `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                  : '';
                 const dayItems = cellDate ? allItems.filter((item) => item.date === cellDate) : [];
+                const displayDay =
+                  day < 1
+                    ? new Date(cursor.getFullYear(), cursor.getMonth(), 0).getDate() + day
+                    : day > daysInMonth
+                      ? day - daysInMonth
+                      : day;
 
                 return (
                   <div
-                    className={`${isCurrentMonth && day === today.getDate() ? 'current' : ''} ${day < 1 || day > daysInMonth ? 'outside' : ''}`}
                     key={index}
+                    className={`flex min-h-[106px] flex-col gap-1 border-b border-r border-[var(--line)] p-2 last:border-r-0 [&:nth-child(7n)]:border-r-0 ${
+                      isToday ? 'bg-[var(--accent-soft)]/30' : ''
+                    } ${isOutside ? 'opacity-40' : ''}`}
                   >
-                    <b>
-                      {day < 1
-                        ? new Date(cursor.getFullYear(), cursor.getMonth(), 0).getDate() + day
-                        : day > daysInMonth
-                          ? day - daysInMonth
-                          : day}
-                    </b>
+                    <span
+                      className={`grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${
+                        isToday ? 'bg-[var(--accent)] text-white' : 'text-[var(--text)]'
+                      }`}
+                    >
+                      {displayDay}
+                    </span>
                     {dayItems.map((item) => (
                       <button
                         type="button"
-                        className={`cal-event ${item.color}`}
-                        onClick={() => handleItemClick(item)}
                         key={item.key}
+                        onClick={() => handleItemClick(item)}
                         title={`${item.time} · ${item.title}`}
+                        className={`w-full truncate rounded-md px-2 py-1 text-left text-[11px] font-semibold text-white ${item.color}`}
                       >
                         {item.source === 'task' ? '✓ ' : `${item.time} · `}
                         {item.title}
@@ -227,20 +264,23 @@ export function CalendarPage({
             </div>
           </>
         ) : view === 'Semana' ? (
-          <div className="calendar-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+          <div className="grid grid-cols-1 divide-y divide-[var(--line)] sm:grid-cols-7 sm:divide-x sm:divide-y-0">
             {weekDates.map((wd) => {
               const items = agendaItems.filter((it) => it.date === wd.key);
               return (
-                <div key={wd.key} className={wd.key === todayKey ? 'current' : ''} style={{ minHeight: 280 }}>
-                  <b style={{ width: 'auto', padding: '0 6px', borderRadius: 6, textTransform: 'capitalize' }}>
-                    {wd.label}
-                  </b>
+                <div
+                  key={wd.key}
+                  className={`flex min-h-[280px] flex-col gap-1.5 p-2.5 ${
+                    wd.key === todayKey ? 'bg-[var(--accent-soft)]/30' : ''
+                  }`}
+                >
+                  <span className="mb-1 text-xs font-bold capitalize text-[var(--text)]">{wd.label}</span>
                   {items.map((item) => (
                     <button
                       type="button"
-                      className={`cal-event ${item.color}`}
-                      onClick={() => handleItemClick(item)}
                       key={item.key}
+                      onClick={() => handleItemClick(item)}
+                      className={`w-full truncate rounded-md px-2 py-1.5 text-left text-[11px] font-semibold text-white ${item.color}`}
                     >
                       {item.source === 'task' ? '✓ ' : `${item.time} · `}
                       {item.title}
@@ -251,76 +291,86 @@ export function CalendarPage({
             })}
           </div>
         ) : (
-          <div className="calendar-agenda día">
-            <div className="agenda-hours">
-              {['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '16:00', '18:00'].map((hour) => (
-                <div key={hour}>
-                  <time>{hour}</time>
-                  <span />
-                </div>
-              ))}
-            </div>
-            <div className="agenda-events">
-              {agendaItems.length === 0 ? (
-                <div className="empty-state" style={{ paddingTop: 60 }}>
-                  <strong>Sin actividades para este día</strong>
-                  <span>Pulsa “+ Evento” para programar una actividad.</span>
-                </div>
-              ) : (
-                agendaItems.map((item, index) => (
+          <div className="p-5">
+            {agendaItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+                <CalendarIcon className="h-8 w-8 text-[var(--muted)]/60" />
+                <p className="m-0 text-sm font-semibold text-[var(--text)]">Sin actividades para este día</p>
+                <p className="m-0 text-xs text-[var(--muted)]">
+                  Pulsa “+ Evento” para programar una actividad en esta fecha.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {agendaItems.map((item) => (
                   <button
                     type="button"
-                    className={item.color}
-                    style={{ top: `${18 + index * 52}px` }}
-                    onClick={() => handleItemClick(item)}
                     key={item.key}
+                    onClick={() => handleItemClick(item)}
+                    className={`flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left text-white ${item.color}`}
                   >
-                    <strong>{item.time}</strong>
-                    {item.title}
-                    <small>{item.source === 'task' ? 'Tarea con vencimiento' : item.type}</small>
+                    <strong className="text-sm">{item.time}</strong>
+                    <div className="min-w-0 flex-1">
+                      <p className="m-0 truncate text-sm font-bold">{item.title}</p>
+                      <p className="m-0 text-xs opacity-85">
+                        {item.source === 'task' ? 'Tarea con vencimiento' : item.type}
+                      </p>
+                    </div>
                   </button>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
-      </section>
+      </Card>
 
       {selected && (
-        <aside className="panel event-detail">
-          <button type="button" className="ghost close-detail" onClick={() => setSelected(null)} aria-label="Cerrar">
-            <Icon name="close" />
-          </button>
-          <span>DETALLE DE ACTIVIDAD</span>
-          <div className={`event-detail-icon ${selected.color}`}>
-            <Icon name="calendar" />
+        <Card className="relative flex flex-col gap-3 p-5 xl:col-span-3 h-fit">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-3 top-3 h-8 w-8"
+            onClick={() => setSelected(null)}
+            aria-label="Cerrar"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+          <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--accent)]">
+            DETALLE DE ACTIVIDAD
+          </span>
+          <div className={`grid h-11 w-11 place-items-center rounded-xl text-white ${selected.color}`}>
+            <CalendarIcon className="h-5 w-5" />
           </div>
-          <h2>{selected.title}</h2>
-          <p>
+          <h3 className="m-0 font-['Manrope'] text-lg font-bold">{selected.title}</h3>
+          <p className="m-0 text-xs leading-relaxed text-[var(--muted)]">
             {selected.type} programado para el {selected.date || `día ${selected.day}`} a las {selected.time}.
           </p>
-          <button
-            type="button"
-            className="primary"
-            onClick={() => {
-              setEditingEvent(selected);
-              setModalOpen(true);
-            }}
-          >
-            Editar evento
-          </button>
-          <button
-            type="button"
-            className="delete-action"
-            onClick={() => {
-              onDeleteEvent(selected.id);
-              setSelected(null);
-            }}
-          >
-            <Icon name="trash" />
-            Eliminar
-          </button>
-        </aside>
+          <div className="mt-2 flex flex-col gap-2">
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => {
+                setEditingEvent(selected);
+                setModalOpen(true);
+              }}
+            >
+              Editar evento
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="w-full"
+              onClick={() => {
+                onDeleteEvent(selected.id);
+                setSelected(null);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Eliminar
+            </Button>
+          </div>
+        </Card>
       )}
 
       {modalOpen && (

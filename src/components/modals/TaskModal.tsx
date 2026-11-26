@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trash2, X } from 'lucide-react';
 import type {
   Project,
   RecurrenceFrequency,
@@ -6,12 +7,12 @@ import type {
   Task,
   TaskPriority,
   TaskStatus,
-} from '../../types';
-import type { CreateTaskDto, UpdateTaskDto } from '../../modules/tasks/application/dtos';
+} from '@/types';
+import type { CreateTaskDto, UpdateTaskDto } from '@/modules/tasks/application/dtos';
 import {
   validateCreateTaskDto,
   validateUpdateTaskDto,
-} from '../../modules/tasks/application/validators';
+} from '@/modules/tasks/application/validators';
 import {
   PRIORITY_COLORS,
   PRIORITY_LABELS,
@@ -20,8 +21,29 @@ import {
   TASK_PRIORITIES,
   TASK_STATUSES,
   toLocalDateKey,
-} from '../../modules/tasks/domain/rules';
-import { Icon } from '../ui/Icon';
+} from '@/modules/tasks/domain/rules';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { DatePicker } from '@/components/ui/date-picker';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface TaskModalProps {
   projects: Project[];
@@ -33,6 +55,7 @@ interface TaskModalProps {
 }
 
 const RECURRENCE_OPTIONS: RecurrenceFrequency[] = ['none', 'daily', 'weekly', 'monthly'];
+const CATEGORIES = ['Desarrollo', 'Trabajo', 'Personal', 'Estudio', 'General'];
 
 export function TaskModal({
   projects,
@@ -78,10 +101,6 @@ export function TaskModal({
     setTagInput('');
   };
 
-  const removeTag = (tag: string) => {
-    setTags((prev) => prev.filter((item) => item !== tag));
-  };
-
   const addSubtask = () => {
     const clean = subtaskInput.trim();
     if (!clean) return;
@@ -92,19 +111,8 @@ export function TaskModal({
     setSubtaskInput('');
   };
 
-  const toggleSubtask = (id: string) => {
-    setSubtasks((prev) =>
-      prev.map((st) => (st.id === id ? { ...st, completed: !st.completed } : st)),
-    );
-  };
-
-  const removeSubtask = (id: string) => {
-    setSubtasks((prev) => prev.filter((st) => st.id !== id));
-  };
-
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-
     const matchedProject = projects.find((p) => p.name === project);
     const baseDto: CreateTaskDto = {
       title,
@@ -149,246 +157,277 @@ export function TaskModal({
   };
 
   return (
-    <div className="modal-layer">
-      <button type="button" className="modal-bg" onClick={onClose} aria-label="Cerrar modal" />
-      <form className="modal task-modal" onSubmit={handleSubmit} noValidate>
-        <header>
-          <div>
-            <span>{isEditing ? 'EDITAR TAREA' : 'NUEVA TAREA'}</span>
-            <h2>{isEditing ? 'Actualizar actividad' : 'Crear actividad'}</h2>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Cerrar">
-            <Icon name="close" />
-          </button>
-        </header>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogDescription>{isEditing ? 'EDITAR TAREA' : 'NUEVA TAREA'}</DialogDescription>
+          <DialogTitle>{isEditing ? 'Actualizar actividad' : 'Crear actividad'}</DialogTitle>
+        </DialogHeader>
 
-        <label>
-          Título *
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ej. Diseñar vista principal..."
-            autoFocus
-          />
-          {errors.title && <small className="field-error">{errors.title}</small>}
-        </label>
-
-        <label>
-          Descripción
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Añade detalles, contexto o criterios de aceptación..."
-          />
-          {errors.description && <small className="field-error">{errors.description}</small>}
-        </label>
-
-        <div className="form-row thirds">
-          <label>
-            Estado
-            <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
-              {TASK_STATUSES.map((st) => (
-                <option key={st} value={st}>
-                  {STATUS_LABELS[st]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Prioridad
-            <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
-              {TASK_PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABELS[p]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Tiempo estimado (min)
-            <input
-              type="number"
-              min={0}
-              max={10080}
-              step={5}
-              value={estimatedMinutes}
-              onChange={(e) => setEstimatedMinutes(Number(e.target.value))}
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div className="space-y-1.5">
+            <Label htmlFor="task-title">Título *</Label>
+            <Input
+              id="task-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ej. Diseñar vista principal..."
+              autoFocus
             />
-            {errors.estimatedMinutes && (
-              <small className="field-error">{errors.estimatedMinutes}</small>
-            )}
-          </label>
-        </div>
-
-        <div className="form-row">
-          <label>
-            Fecha de inicio
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            {errors.startDate && <small className="field-error">{errors.startDate}</small>}
-          </label>
-          <label>
-            Fecha de vencimiento
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            {errors.dueDate && <small className="field-error">{errors.dueDate}</small>}
-          </label>
-        </div>
-
-        <div className="form-row">
-          <label>
-            Proyecto
-            <select value={project} onChange={(e) => setProject(e.target.value)}>
-              {projects
-                .filter((p) => !p.archived)
-                .map((p) => (
-                  <option key={p.id} value={p.name}>
-                    {p.name}
-                  </option>
-                ))}
-              <option value="Sin proyecto">Sin proyecto</option>
-            </select>
-          </label>
-          <label>
-            Categoría
-            <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="Desarrollo">Desarrollo</option>
-              <option value="Trabajo">Trabajo</option>
-              <option value="Personal">Personal</option>
-              <option value="Estudio">Estudio</option>
-              <option value="General">General</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="form-row thirds">
-          <label>
-            Recurrencia
-            <select
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value as RecurrenceFrequency)}
-            >
-              {RECURRENCE_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {RECURRENCE_LABELS[opt]}
-                </option>
-              ))}
-            </select>
-          </label>
-          {frequency !== 'none' && (
-            <>
-              <label>
-                Cada (intervalo)
-                <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={interval}
-                  onChange={(e) => setInterval(Number(e.target.value))}
-                />
-              </label>
-              <label>
-                Finaliza el (opcional)
-                <input
-                  type="date"
-                  value={recurrenceEndDate}
-                  onChange={(e) => setRecurrenceEndDate(e.target.value)}
-                />
-              </label>
-            </>
-          )}
-        </div>
-        {errors.recurrence && <small className="field-error">{errors.recurrence}</small>}
-
-        <div className="modal-section">
-          <span className="modal-section-label">Etiquetas</span>
-          <div className="inline-input-row">
-            <input
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ',') {
-                  e.preventDefault();
-                  addTag();
-                }
-              }}
-              placeholder="Ej. backend, urgente, sprint (Enter para añadir)"
-            />
-            <button type="button" className="setting-action" onClick={addTag}>
-              Añadir
-            </button>
+            {errors.title && <small className="field-error">{errors.title}</small>}
           </div>
-          {tags.length > 0 && (
-            <div className="tag-list">
-              {tags.map((tag) => (
-                <span className="tag-chip" key={tag}>
-                  #{tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    aria-label={`Quitar etiqueta ${tag}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="task-desc">Descripción</Label>
+            <Textarea
+              id="task-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Añade detalles, contexto o criterios de aceptación..."
+            />
+            {errors.description && <small className="field-error">{errors.description}</small>}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label>Estado</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TASK_STATUSES.map((st) => (
+                    <SelectItem key={st} value={st}>
+                      {STATUS_LABELS[st]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-        </div>
 
-        <div className="modal-section">
-          <span className="modal-section-label">Subtareas ({subtasks.length})</span>
-          <div className="inline-input-row">
-            <input
-              value={subtaskInput}
-              onChange={(e) => setSubtaskInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addSubtask();
-                }
-              }}
-              placeholder="Añadir paso o subtarea..."
-            />
-            <button type="button" className="setting-action" onClick={addSubtask}>
-              Añadir
-            </button>
+            <div className="space-y-1.5">
+              <Label>Prioridad</Label>
+              <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TASK_PRIORITIES.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {PRIORITY_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="task-est">Tiempo estimado (min)</Label>
+              <Input
+                id="task-est"
+                type="number"
+                min={0}
+                max={10080}
+                step={5}
+                value={estimatedMinutes}
+                onChange={(e) => setEstimatedMinutes(Number(e.target.value))}
+              />
+              {errors.estimatedMinutes && <small className="field-error">{errors.estimatedMinutes}</small>}
+            </div>
           </div>
-          {subtasks.length > 0 && (
-            <div className="subtask-editor-list">
-              {subtasks.map((st) => (
-                <div className="subtask-editor-item" key={st.id}>
-                  <button
-                    type="button"
-                    className={`task-check ${st.completed ? 'checked' : ''}`}
-                    onClick={() => toggleSubtask(st.id)}
-                    aria-label={`Marcar subtarea ${st.title}`}
-                  >
-                    {st.completed && <Icon name="check" size={11} />}
-                  </button>
-                  <span className={st.completed ? 'done' : ''}>{st.title}</span>
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() => removeSubtask(st.id)}
-                    aria-label={`Eliminar subtarea ${st.title}`}
-                  >
-                    <Icon name="trash" size={13} />
-                  </button>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Fecha de inicio</Label>
+              <DatePicker value={startDate} onChange={setStartDate} placeholder="Sin fecha de inicio" />
+              {errors.startDate && <small className="field-error">{errors.startDate}</small>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Fecha de vencimiento</Label>
+              <DatePicker value={dueDate} onChange={setDueDate} placeholder="Sin fecha de vencimiento" />
+              {errors.dueDate && <small className="field-error">{errors.dueDate}</small>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Proyecto</Label>
+              <Select value={project} onValueChange={setProject}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects
+                    .filter((p) => !p.archived)
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.name}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  <SelectItem value="Sin proyecto">Sin proyecto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Categoría</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label>Recurrencia</Label>
+              <Select value={frequency} onValueChange={(v) => setFrequency(v as RecurrenceFrequency)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RECURRENCE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt} value={opt}>
+                      {RECURRENCE_LABELS[opt]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {frequency !== 'none' && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="task-int">Cada (intervalo)</Label>
+                  <Input
+                    id="task-int"
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={interval}
+                    onChange={(e) => setInterval(Number(e.target.value))}
+                  />
                 </div>
-              ))}
-            </div>
-          )}
-          {errors.subtasks && <small className="field-error">{errors.subtasks}</small>}
-        </div>
+                <div className="space-y-1.5">
+                  <Label>Finaliza el (opcional)</Label>
+                  <DatePicker
+                    value={recurrenceEndDate}
+                    onChange={setRecurrenceEndDate}
+                    placeholder="Sin fecha fin"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          {errors.recurrence && <small className="field-error">{errors.recurrence}</small>}
 
-        <footer>
-          <button type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="primary" type="submit">
-            {isEditing ? 'Guardar cambios' : 'Crear tarea'}
-          </button>
-        </footer>
-      </form>
-    </div>
+          <div className="space-y-2">
+            <Label>Etiquetas</Label>
+            <div className="flex gap-2">
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addTag();
+                  }
+                }}
+                placeholder="Ej. backend, urgente, sprint (Enter para añadir)"
+              />
+              <Button type="button" variant="outline" onClick={addTag}>
+                Añadir
+              </Button>
+            </div>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((tag) => (
+                  <Badge variant="default" key={tag} className="gap-1.5 py-1 px-2.5">
+                    #{tag}
+                    <button
+                      type="button"
+                      onClick={() => setTags((prev) => prev.filter((item) => item !== tag))}
+                      aria-label={`Quitar etiqueta ${tag}`}
+                      className="hover:opacity-75"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Subtareas ({subtasks.length})</Label>
+            <div className="flex gap-2">
+              <Input
+                value={subtaskInput}
+                onChange={(e) => setSubtaskInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addSubtask();
+                  }
+                }}
+                placeholder="Añadir paso o subtarea..."
+              />
+              <Button type="button" variant="outline" onClick={addSubtask}>
+                Añadir
+              </Button>
+            </div>
+            {subtasks.length > 0 && (
+              <div className="space-y-1.5">
+                {subtasks.map((st) => (
+                  <div
+                    className="flex items-center gap-2.5 rounded-lg bg-[var(--surface-2)] px-3 py-2 text-[13px]"
+                    key={st.id}
+                  >
+                    <Checkbox
+                      checked={st.completed}
+                      onCheckedChange={() =>
+                        setSubtasks((prev) =>
+                          prev.map((item) =>
+                            item.id === st.id ? { ...item, completed: !item.completed } : item,
+                          ),
+                        )
+                      }
+                    />
+                    <span className={st.completed ? 'flex-1 line-through text-[var(--muted)]' : 'flex-1'}>
+                      {st.title}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setSubtasks((prev) => prev.filter((item) => item.id !== st.id))}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {errors.subtasks && <small className="field-error">{errors.subtasks}</small>}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit">{isEditing ? 'Guardar cambios' : 'Crear tarea'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Plus } from 'lucide-react';
 import type {
   AccentTone,
   AppData,
@@ -26,8 +28,8 @@ import { playCompletionChime } from './utils/sound';
 import type { TaskStatus } from './types';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
-import { Icon } from './components/ui/Icon';
 import { Toast } from './components/ui/Toast';
+import { Button } from './components/ui/button';
 import { TaskModal } from './components/modals/TaskModal';
 import { DashboardPage } from './pages/DashboardPage';
 import { TasksPage } from './pages/TasksPage';
@@ -49,6 +51,7 @@ export default function App() {
 
   const [active, setActive] = useState<ModuleName>('Dashboard');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [modalInitialStatus, setModalInitialStatus] = useState<TaskStatus>('Pending');
@@ -101,7 +104,8 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.dark);
-  }, [settings.dark]);
+    document.documentElement.dataset.accent = settings.accent;
+  }, [settings.dark, settings.accent]);
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -560,22 +564,33 @@ export default function App() {
     }
   }, [active, activeTasks, backups, events, now, projects, reminders, seconds, sessions, settings, tasks, timerRunning, userInitials, weekDays]);
 
+  const timerLabel = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+
   return (
-    <div className="app">
+    <div className="flex min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <Sidebar
         modules={MODULE_ITEMS}
         active={active}
         menuOpen={menuOpen}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         onSelect={openModule}
         onCloseMenu={() => setMenuOpen(false)}
         completedCount={completedCount}
         totalCount={activeTasks.length}
         activeRemindersCount={activeRemindersCount}
         userName={settings.userName}
+        timerRunning={timerRunning}
+        timerLabel={timerLabel}
       />
 
-      <main>
+      <main
+        className={`flex min-w-0 flex-1 flex-col overflow-x-clip transition-all duration-250 ${
+          sidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]'
+        }`}
+      >
         <Header
+          active={active}
           query={query}
           onQueryChange={setQuery}
           searchRef={searchRef}
@@ -589,21 +604,38 @@ export default function App() {
           onOpenNewTask={() => openNewTaskModal('Pending')}
         />
 
-        <div className="page" key={active}>
-          <div className="page-title">
+        <div className="w-full flex-1 px-5 py-6 lg:px-8 lg:py-7">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <span>CRONIA / {active.toUpperCase()}</span>
-              <h1>{active}</h1>
-              <p>{PAGE_DESCRIPTIONS[active]}</p>
+              <h1 className="font-display m-0 text-2xl font-extrabold tracking-tight sm:text-[26px]">
+                {active}
+              </h1>
+              <p className="m-0 mt-1 text-[13.5px] text-[var(--muted)]">{PAGE_DESCRIPTIONS[active]}</p>
             </div>
             {active !== 'Configuración' && (
-              <button type="button" className="primary mobile-new" onClick={() => openNewTaskModal('Pending')}>
-                <Icon name="plus" />
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => openNewTaskModal('Pending')}
+                className="sm:hidden"
+              >
+                <Plus className="h-4 w-4" />
                 Crear
-              </button>
+              </Button>
             )}
           </div>
-          {page}
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={active}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
+            >
+              {page}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 

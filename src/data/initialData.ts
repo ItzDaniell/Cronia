@@ -30,7 +30,7 @@ export const PAGE_DESCRIPTIONS: Record<ModuleName, string> = {
 export const DEFAULT_SETTINGS: UserSettings = {
   userName: 'Usuario',
   dark: true,
-  accent: 'violet',
+  accent: 'green',
   launchOnStartup: true,
   minimizeToTray: true,
   nativeNotifications: true,
