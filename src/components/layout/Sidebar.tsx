@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { PanelLeftClose, PanelLeftOpen, Timer, X } from 'lucide-react';
 import type { ModuleName, ModuleNavItem } from '@/types';
+import { useI18n } from '@/i18n';
 import { Icon } from '@/components/ui/Icon';
 
 interface SidebarProps {
@@ -34,6 +35,7 @@ export function Sidebar({
   timerRunning = false,
   timerLabel = '25:00',
 }: SidebarProps) {
+  const { moduleLabel, groupLabel, tr } = useI18n();
   const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const initials =
     userName
@@ -115,13 +117,13 @@ export function Sidebar({
               <div key={item.name}>
                 {item.group && !collapsed && (
                   <p className="mb-1.5 mt-4 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]/80 first:mt-0">
-                    {item.group}
+                    {groupLabel(item.group)}
                   </p>
                 )}
                 {item.group && collapsed && <div className="my-2.5 h-px bg-[var(--line)] first:hidden" />}
                 <button
                   type="button"
-                  title={collapsed ? item.name : undefined}
+                  title={collapsed ? moduleLabel(item.name) : undefined}
                   onClick={() => onSelect(item.name)}
                   className={`group relative flex h-9 w-full items-center rounded-lg transition-colors ${
                     collapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5'
@@ -141,7 +143,7 @@ export function Sidebar({
                   <span className={isActive ? 'text-[var(--accent)]' : ''}>
                     <Icon name={item.icon} size={17} />
                   </span>
-                  {!collapsed && <span className="truncate text-[13.5px]">{item.name}</span>}
+                  {!collapsed && <span className="truncate text-[13.5px]">{moduleLabel(item.name)}</span>}
                   {!collapsed && badge ? (
                     <span className="font-mono-num ml-auto rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[11px] font-bold text-[var(--accent)]">
                       {badge}
@@ -174,7 +176,7 @@ export function Sidebar({
           {!collapsed && (
             <div className="rounded-lg bg-[var(--surface-2)]/70 px-3 py-2.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[var(--muted)]">Progreso</span>
+                <span className="text-[var(--muted)]">{tr('Progreso', 'Progress')}</span>
                 <span className="font-mono-num font-bold text-[var(--text)]">{progress}%</span>
               </div>
               <div className="my-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--line)]">
@@ -186,7 +188,7 @@ export function Sidebar({
                 />
               </div>
               <p className="m-0 text-[11px] text-[var(--muted)]">
-                {completedCount}/{totalCount} tareas listas
+                {completedCount}/{totalCount} {tr('tareas listas', 'tasks done')}
               </p>
             </div>
           )}
@@ -205,7 +207,7 @@ export function Sidebar({
             {!collapsed && (
               <div className="min-w-0 flex-1 leading-tight">
                 <p className="m-0 truncate text-[13px] font-semibold text-[var(--text)]">{userName}</p>
-                <p className="m-0 text-[11px] text-[var(--muted)]">Espacio personal</p>
+                <p className="m-0 text-[11px] text-[var(--muted)]">{tr('Espacio personal', 'Personal space')}</p>
               </div>
             )}
           </button>

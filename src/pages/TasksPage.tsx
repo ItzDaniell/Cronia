@@ -1,12 +1,8 @@
 import { ArrowUpDown, LayoutGrid, List, Plus, Search } from 'lucide-react';
 import type { Task, TaskPriority, TaskSortField, TaskStatus, TaskView } from '@/types';
-import {
-  PRIORITY_LABELS,
-  STATUS_LABELS,
-  TASK_PRIORITIES,
-  TASK_STATUSES,
-} from '@/modules/tasks/domain/rules';
+import { TASK_PRIORITIES, TASK_STATUSES } from '@/modules/tasks/domain/rules';
 import { useTasksViewModel } from '@/modules/tasks/presentation/useTasksViewModel';
+import { useI18n } from '@/i18n';
 import { Card } from '@/components/ui/card';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { TaskRows } from '@/components/tasks/TaskRows';
@@ -46,6 +42,7 @@ export function TasksPage({
   onToggleSubtask,
   onOpenNewTask,
 }: TasksPageProps) {
+  const { tr, priorityLabel, statusLabel, taskViewLabel } = useI18n();
   const vm = useTasksViewModel(tasks);
   const { summary } = vm;
 
@@ -65,30 +62,34 @@ export function TasksPage({
         <MetricCard
           icon="list"
           tone="violet"
-          label="Pendientes"
+          label={tr('Pendientes', 'Pending')}
           value={summary.pending + summary.inProgress}
-          note={`${summary.inProgress} en progreso`}
+          note={tr(`${summary.inProgress} en progreso`, `${summary.inProgress} in progress`)}
         />
         <MetricCard
           icon="check"
           tone="green"
-          label="Completadas"
+          label={tr('Completadas', 'Completed')}
           value={summary.completed}
-          note={`${summary.completionPct}% del total`}
+          note={tr(`${summary.completionPct}% del total`, `${summary.completionPct}% of total`)}
         />
         <MetricCard
           icon="flag"
           tone="orange"
-          label="Vencidas"
+          label={tr('Vencidas', 'Overdue')}
           value={summary.overdue}
-          note={summary.overdue > 0 ? 'Requieren atención' : 'Todo al día'}
+          note={
+            summary.overdue > 0
+              ? tr('Requieren atención', 'Need attention')
+              : tr('Todo al día', 'All caught up')
+          }
         />
         <MetricCard
           icon="target"
           tone="blue"
-          label="Para hoy"
+          label={tr('Para hoy', 'Due today')}
           value={summary.dueToday}
-          note={`${summary.byPriority.Urgent} urgentes`}
+          note={tr(`${summary.byPriority.Urgent} urgentes`, `${summary.byPriority.Urgent} urgent`)}
         />
       </div>
 
@@ -111,7 +112,7 @@ export function TasksPage({
                       : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
                   }`}
                 >
-                  {tab}
+                  {taskViewLabel(tab)}
                   {count !== null && (
                     <span className="rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[11px] font-bold text-[var(--muted)]">
                       {count}
@@ -134,7 +135,7 @@ export function TasksPage({
                 }`}
               >
                 <List className="h-3.5 w-3.5" />
-                Lista
+                {tr('Lista', 'List')}
               </button>
               <button
                 type="button"
@@ -154,7 +155,7 @@ export function TasksPage({
             {vm.view !== 'Papelera' && (
               <Button type="button" size="sm" onClick={() => onOpenNewTask('Pending')}>
                 <Plus className="h-4 w-4" />
-                Añadir
+                {tr('Añadir', 'Add')}
               </Button>
             )}
           </div>
@@ -167,7 +168,10 @@ export function TasksPage({
             <Input
               value={vm.search}
               onChange={(e) => vm.setSearch(e.target.value)}
-              placeholder="Buscar tareas, etiquetas o subtareas..."
+              placeholder={tr(
+                'Buscar tareas, etiquetas o subtareas...',
+                'Search tasks, tags, or subtasks...',
+              )}
               className="bg-[var(--surface)] pl-9"
             />
           </div>
@@ -177,13 +181,13 @@ export function TasksPage({
             onValueChange={(v) => vm.setPriorityFilter(v as TaskPriority | 'All')}
           >
             <SelectTrigger className="w-auto min-w-[155px] bg-[var(--surface)]">
-              <SelectValue placeholder="Prioridad" />
+              <SelectValue placeholder={tr('Prioridad', 'Priority')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">Prioridad: Todas</SelectItem>
+              <SelectItem value="All">{tr('Prioridad: Todas', 'Priority: All')}</SelectItem>
               {TASK_PRIORITIES.map((p) => (
                 <SelectItem key={p} value={p}>
-                  {PRIORITY_LABELS[p]}
+                  {priorityLabel(p)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -194,13 +198,13 @@ export function TasksPage({
             onValueChange={(v) => vm.setStatusFilter(v as TaskStatus | 'All')}
           >
             <SelectTrigger className="w-auto min-w-[148px] bg-[var(--surface)]">
-              <SelectValue placeholder="Estado" />
+              <SelectValue placeholder={tr('Estado', 'Status')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">Estado: Todos</SelectItem>
+              <SelectItem value="All">{tr('Estado: Todos', 'Status: All')}</SelectItem>
               {TASK_STATUSES.map((st) => (
                 <SelectItem key={st} value={st}>
-                  {STATUS_LABELS[st]}
+                  {statusLabel(st)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -208,10 +212,10 @@ export function TasksPage({
 
           <Select value={vm.categoryFilter} onValueChange={vm.setCategoryFilter}>
             <SelectTrigger className="w-auto min-w-[160px] bg-[var(--surface)]">
-              <SelectValue placeholder="Categoría" />
+              <SelectValue placeholder={tr('Categoría', 'Category')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">Categoría: Todas</SelectItem>
+              <SelectItem value="All">{tr('Categoría: Todas', 'Category: All')}</SelectItem>
               {vm.availableCategories.map((cat) => (
                 <SelectItem key={cat} value={cat}>
                   {cat}
@@ -223,10 +227,10 @@ export function TasksPage({
           {vm.availableTags.length > 0 && (
             <Select value={vm.tagFilter} onValueChange={vm.setTagFilter}>
               <SelectTrigger className="w-auto min-w-[150px] bg-[var(--surface)]">
-                <SelectValue placeholder="Etiqueta" />
+                <SelectValue placeholder={tr('Etiqueta', 'Tag')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="All">Etiqueta: Todas</SelectItem>
+                <SelectItem value="All">{tr('Etiqueta: Todas', 'Tag: All')}</SelectItem>
                 {vm.availableTags.map((tag) => (
                   <SelectItem key={tag} value={tag}>
                     #{tag}
@@ -238,14 +242,14 @@ export function TasksPage({
 
           <Select value={vm.sortBy} onValueChange={(v) => vm.setSortBy(v as TaskSortField)}>
             <SelectTrigger className="w-auto min-w-[172px] bg-[var(--surface)]">
-              <SelectValue placeholder="Ordenar por" />
+              <SelectValue placeholder={tr('Ordenar por', 'Sort by')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="dueDate">Orden: Vencimiento</SelectItem>
-              <SelectItem value="priority">Orden: Prioridad</SelectItem>
-              <SelectItem value="title">Orden: Título</SelectItem>
-              <SelectItem value="estimatedMinutes">Orden: Tiempo</SelectItem>
-              <SelectItem value="createdAt">Orden: Creación</SelectItem>
+              <SelectItem value="dueDate">{tr('Orden: Vencimiento', 'Sort: Due date')}</SelectItem>
+              <SelectItem value="priority">{tr('Orden: Prioridad', 'Sort: Priority')}</SelectItem>
+              <SelectItem value="title">{tr('Orden: Título', 'Sort: Title')}</SelectItem>
+              <SelectItem value="estimatedMinutes">{tr('Orden: Tiempo', 'Sort: Time')}</SelectItem>
+              <SelectItem value="createdAt">{tr('Orden: Creación', 'Sort: Created')}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -262,7 +266,7 @@ export function TasksPage({
 
           {vm.hasActiveFilters && (
             <Button type="button" variant="ghost" size="sm" className="h-9" onClick={vm.resetFilters}>
-              Limpiar
+              {tr('Limpiar', 'Clear')}
             </Button>
           )}
         </div>

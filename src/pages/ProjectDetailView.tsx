@@ -19,6 +19,7 @@ import {
   isTaskDeleted,
   isTaskOverdue,
 } from '@/modules/tasks/domain/rules';
+import { useI18n } from '@/i18n';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ export function ProjectDetailView({
   onDeleteTask,
   onToggleSubtask,
 }: ProjectDetailViewProps) {
+  const { tr } = useI18n();
   const [displayMode, setDisplayMode] = useState<'Lista' | 'Kanban'>('Lista');
 
   const projectTasks = useMemo(
@@ -100,13 +102,13 @@ export function ProjectDetailView({
       <div className="flex items-center justify-between gap-3">
         <Button type="button" variant="ghost" size="sm" onClick={onBack} className="-ml-2">
           <ArrowLeft className="h-4 w-4" />
-          Volver a proyectos
+          {tr('Volver a proyectos', 'Back to projects')}
         </Button>
 
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => onEditProject(project)}>
             <Pencil className="h-3.5 w-3.5" />
-            Editar
+            {tr('Editar', 'Edit')}
           </Button>
           <Button
             type="button"
@@ -117,12 +119,12 @@ export function ProjectDetailView({
             {project.archived ? (
               <>
                 <RotateCcw className="h-3.5 w-3.5" />
-                Restaurar
+                {tr('Restaurar', 'Restore')}
               </>
             ) : (
               <>
                 <Archive className="h-3.5 w-3.5" />
-                Archivar
+                {tr('Archivar', 'Archive')}
               </>
             )}
           </Button>
@@ -136,7 +138,7 @@ export function ProjectDetailView({
             }}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Eliminar
+            {tr('Eliminar', 'Delete')}
           </Button>
         </div>
       </div>
@@ -157,7 +159,7 @@ export function ProjectDetailView({
                 </h2>
                 {project.archived && (
                   <span className="rounded-md bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted)]">
-                    Archivado
+                    {tr('Archivado', 'Archived')}
                   </span>
                 )}
               </div>
@@ -165,10 +167,10 @@ export function ProjectDetailView({
               <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-[var(--muted)]">
                 <span className="inline-flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5" />
-                  Objetivo: <strong className="text-[var(--text)]">{project.date}</strong>
+                  {tr('Objetivo:', 'Target:')} <strong className="text-[var(--text)]">{project.date}</strong>
                 </span>
                 <span className="font-mono-num">
-                  Avance: <strong className="text-[var(--text)]">{pct}%</strong> ({completed}/
+                  {tr('Avance:', 'Progress:')} <strong className="text-[var(--text)]">{pct}%</strong> ({completed}/
                   {projectTasks.length})
                 </span>
               </div>
@@ -177,7 +179,7 @@ export function ProjectDetailView({
 
           <Button type="button" onClick={() => onNewTaskInProject(project.name, 'Pending')}>
             <Plus className="h-4 w-4" />
-            Nueva tarea
+            {tr('Nueva tarea', 'New task')}
           </Button>
         </div>
 
@@ -196,30 +198,34 @@ export function ProjectDetailView({
         <MetricCard
           icon="list"
           tone="green"
-          label="Tareas activas"
+          label={tr('Tareas activas', 'Active tasks')}
           value={activeCount}
-          note={`De ${projectTasks.length} en este proyecto`}
+          note={tr(`De ${projectTasks.length} en este proyecto`, `Out of ${projectTasks.length} in project`)}
         />
         <MetricCard
           icon="check"
           tone="blue"
-          label="Completadas"
+          label={tr('Completadas', 'Completed')}
           value={completed}
-          note={`${pct}% completado`}
+          note={tr(`${pct}% completado`, `${pct}% completed`)}
         />
         <MetricCard
           icon="flag"
           tone="orange"
-          label="Vencidas"
+          label={tr('Vencidas', 'Overdue')}
           value={overdue}
-          note={overdue > 0 ? 'Requieren atención' : 'Todo al día'}
+          note={
+            overdue > 0
+              ? tr('Requieren atención', 'Need attention')
+              : tr('Todo al día', 'All caught up')
+          }
         />
         <MetricCard
           icon="timer"
           tone="violet"
-          label="Tiempo enfocado"
+          label={tr('Tiempo enfocado', 'Focused time')}
           value={focusLabel}
-          note={`${projectSessions.length} sesiones registradas`}
+          note={tr(`${projectSessions.length} sesiones registradas`, `${projectSessions.length} sessions logged`)}
         />
       </div>
 
@@ -227,8 +233,10 @@ export function ProjectDetailView({
       <Card className="overflow-hidden">
         <CardHeader>
           <div>
-            <CardTitle>Tareas del proyecto ({projectTasks.length})</CardTitle>
-            <CardDescription>Solo actividades vinculadas a {project.name}</CardDescription>
+            <CardTitle>{tr(`Tareas del proyecto (${projectTasks.length})`, `Project tasks (${projectTasks.length})`)}</CardTitle>
+            <CardDescription>
+              {tr(`Solo actividades vinculadas a ${project.name}`, `Only tasks linked to ${project.name}`)}
+            </CardDescription>
           </div>
 
           <div className="flex items-center gap-2">
@@ -243,7 +251,7 @@ export function ProjectDetailView({
                 }`}
               >
                 <List className="h-3.5 w-3.5" />
-                Lista
+                {tr('Lista', 'List')}
               </button>
               <button
                 type="button"
@@ -285,8 +293,10 @@ export function ProjectDetailView({
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>Sesiones de enfoque del proyecto</CardTitle>
-              <CardDescription>{projectSessions.length} bloques registrados</CardDescription>
+              <CardTitle>{tr('Sesiones de enfoque del proyecto', 'Project focus sessions')}</CardTitle>
+              <CardDescription>
+                {tr(`${projectSessions.length} bloques registrados`, `${projectSessions.length} blocks logged`)}
+              </CardDescription>
             </div>
             <Timer className="h-4 w-4 text-[var(--muted)]" />
           </CardHeader>

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Archive, ArrowRight, Calendar, Folder, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import type { AccentTone, FocusSession, Project, Task, TaskStatus } from '@/types';
 import { isTaskCompleted, isTaskDeleted } from '@/modules/tasks/domain/rules';
+import { useI18n } from '@/i18n';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProjectModal } from '@/components/modals/ProjectModal';
@@ -43,6 +44,7 @@ export function ProjectsPage({
   onDeleteTask,
   onToggleSubtask,
 }: ProjectsPageProps) {
+  const { tr } = useI18n();
   const [tab, setTab] = useState<'Activos' | 'Archivados'>('Activos');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
@@ -121,7 +123,7 @@ export function ProjectsPage({
                     : 'text-[var(--muted)] hover:text-[var(--text)]'
                 }`}
               >
-                {item}
+                {item === 'Activos' ? tr('Activos', 'Active') : tr('Archivados', 'Archived')}
                 <span className="font-mono-num text-xs opacity-80">{count}</span>
               </button>
             );
@@ -136,7 +138,7 @@ export function ProjectsPage({
           }}
         >
           <Plus className="h-4 w-4" />
-          Nuevo proyecto
+          {tr('Nuevo proyecto', 'New project')}
         </Button>
       </div>
 
@@ -171,7 +173,7 @@ export function ProjectsPage({
                         setEditing(project);
                         setModalOpen(true);
                       }}
-                      title="Editar proyecto"
+                      title={tr('Editar proyecto', 'Edit project')}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -181,7 +183,11 @@ export function ProjectsPage({
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => onToggleArchive(project.id)}
-                      title={project.archived ? 'Restaurar proyecto' : 'Archivar proyecto'}
+                      title={
+                        project.archived
+                          ? tr('Restaurar proyecto', 'Restore project')
+                          : tr('Archivar proyecto', 'Archive project')
+                      }
                     >
                       {project.archived ? (
                         <RotateCcw className="h-3.5 w-3.5" />
@@ -195,7 +201,7 @@ export function ProjectsPage({
                       size="icon"
                       className="h-8 w-8 hover:text-rose-500"
                       onClick={() => onDeleteProject(project.id)}
-                      title="Eliminar proyecto"
+                      title={tr('Eliminar proyecto', 'Delete project')}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -211,7 +217,7 @@ export function ProjectsPage({
 
                 <div className="flex justify-between text-xs text-[var(--muted)]">
                   <span>
-                    {done} de {total} tareas
+                    {tr(`${done} de ${total} tareas`, `${done} of ${total} tasks`)}
                   </span>
                   <strong className="font-mono-num text-[var(--text)]">{pct}%</strong>
                 </div>
@@ -251,8 +257,10 @@ export function ProjectsPage({
             <div className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
               <Plus className="h-5 w-5" />
             </div>
-            <strong className="text-sm text-[var(--text)]">Crear proyecto</strong>
-            <span className="text-xs text-[var(--muted)]">Organiza un nuevo objetivo</span>
+            <strong className="text-sm text-[var(--text)]">{tr('Crear proyecto', 'Create project')}</strong>
+            <span className="text-xs text-[var(--muted)]">
+              {tr('Organiza un nuevo objetivo', 'Organize a new goal')}
+            </span>
           </button>
         )}
       </div>

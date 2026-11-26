@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Calendar as CalendarIcon, X } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
-import { es } from 'date-fns/locale';
+import { enUS, es } from 'date-fns/locale';
+import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -30,20 +31,21 @@ function formatIsoDate(date: Date): string {
 export function DatePicker({
   value,
   onChange,
-  placeholder = 'Seleccionar fecha',
+  placeholder,
   clearable = true,
   className,
 }: DatePickerProps) {
+  const { tr, locale, isEn } = useI18n();
   const [open, setOpen] = useState(false);
   const selected = parseIsoDate(value);
 
   const label = selected
-    ? new Intl.DateTimeFormat('es-ES', {
+    ? new Intl.DateTimeFormat(locale, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
       }).format(selected)
-    : placeholder;
+    : (placeholder ?? tr('Seleccionar fecha', 'Select date'));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -65,7 +67,7 @@ export function DatePicker({
             <span
               role="button"
               tabIndex={0}
-              aria-label="Limpiar fecha"
+              aria-label={tr('Limpiar fecha', 'Clear date')}
               onClick={(e) => {
                 e.stopPropagation();
                 onChange('');
@@ -86,7 +88,7 @@ export function DatePicker({
       <PopoverContent className="p-3 cronia-daypicker" align="start">
         <DayPicker
           mode="single"
-          locale={es}
+          locale={isEn ? enUS : es}
           selected={selected}
           onSelect={(day) => {
             onChange(day ? formatIsoDate(day) : '');

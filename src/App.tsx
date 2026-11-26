@@ -17,7 +17,6 @@ import {
   DEFAULT_SETTINGS,
   EMPTY_APP_DATA,
   MODULE_ITEMS,
-  PAGE_DESCRIPTIONS,
 } from './data/initialData';
 import { persistence } from './services/persistence';
 import { getReminderTriggerDate, native } from './services/native';
@@ -35,6 +34,7 @@ import type { TaskStatus } from './types';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { StartupExperience } from './components/onboarding/StartupExperience';
+import { I18nProvider, useI18n } from './i18n';
 import { Toast } from './components/ui/Toast';
 import { Button } from './components/ui/button';
 import { TaskModal } from './components/modals/TaskModal';
@@ -46,6 +46,32 @@ import { RemindersPage } from './pages/RemindersPage';
 import { FocusPage } from './pages/FocusPage';
 import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
+
+function PageHeading({
+  active,
+  onNewTask,
+}: {
+  active: ModuleName;
+  onNewTask: () => void;
+}) {
+  const { moduleLabel, pageDescription, tr } = useI18n();
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 className="font-display m-0 text-2xl font-extrabold tracking-tight sm:text-[26px]">
+          {moduleLabel(active)}
+        </h1>
+        <p className="m-0 mt-1 text-[13.5px] text-[var(--muted)]">{pageDescription(active)}</p>
+      </div>
+      {active !== 'Configuración' && (
+        <Button type="button" size="sm" onClick={onNewTask} className="sm:hidden">
+          <Plus className="h-4 w-4" />
+          {tr('Crear', 'Create')}
+        </Button>
+      )}
+    </div>
+  );
+}
 
 export default function App() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
@@ -539,6 +565,27 @@ export default function App() {
       });
   };
 
+  const handleDeleteBackup = (fileName: string) => {
+    persistence
+      .deleteBackup(fileName)
+      .then(() => {
+        setBackups((prev) => prev.filter((b) => b.fileName !== fileName));
+        notify(
+          settings.language === 'English'
+            ? `Backup deleted: ${fileName}`
+            : `Copia eliminada: ${fileName}`,
+        );
+      })
+      .catch((err) => {
+        console.error(err);
+        notify(
+          settings.language === 'English'
+            ? 'Could not delete backup'
+            : 'No se pudo eliminar la copia de seguridad',
+        );
+      });
+  };
+
   const handleResetAllData = () => {
     setTasks([]);
     setProjects([]);
@@ -690,6 +737,7 @@ export default function App() {
             onUpdateSettings={updateSettings}
             onCreateBackup={handleCreateBackup}
             onRestoreBackup={handleRestoreBackup}
+            onDeleteBackup={handleDeleteBackup}
             onResetAllData={handleResetAllData}
             onNotify={notify}
           />
@@ -700,105 +748,89 @@ export default function App() {
   const timerLabel = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
   return (
-    <div className="flex min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <Sidebar
-        modules={MODULE_ITEMS}
-        active={active}
-        menuOpen={menuOpen}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
-        onSelect={openModule}
-        onCloseMenu={() => setMenuOpen(false)}
-        completedCount={completedCount}
-        totalCount={activeTasks.length}
-        activeRemindersCount={activeRemindersCount}
-        userName={settings.userName}
-        timerRunning={timerRunning}
-        timerLabel={timerLabel}
-      />
-
-      <main
-        className={`flex min-w-0 flex-1 flex-col overflow-x-clip transition-all duration-250 ${
-          sidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]'
-        }`}
-      >
-        <Header
-          active={active}
-          query={query}
-          onQueryChange={setQuery}
-          searchRef={searchRef}
+    <I18nProvider language={settings.language}>
+      <div className="flex min-h-screen bg-[var(--bg)] text-[var(--text)]">
+        <Sidebar
           modules={MODULE_ITEMS}
-          tasks={activeTasks}
-          projects={projects}
-          dark={settings.dark}
-          onToggleTheme={() => updateSettings({ dark: !settings.dark })}
-          onOpenModule={openModule}
-          onOpenMenu={() => setMenuOpen(true)}
-          onOpenNewTask={() => openNewTaskModal('Pending')}
+          active={active}
+          menuOpen={menuOpen}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+          onSelect={openModule}
+          onCloseMenu={() => setMenuOpen(false)}
+          completedCount={completedCount}
+          totalCount={activeTasks.length}
+          activeRemindersCount={activeRemindersCount}
+          userName={settings.userName}
+          timerRunning={timerRunning}
+          timerLabel={timerLabel}
         />
 
-        <div className="w-full flex-1 px-5 py-6 lg:px-8 lg:py-7">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="font-display m-0 text-2xl font-extrabold tracking-tight sm:text-[26px]">
-                {active}
-              </h1>
-              <p className="m-0 mt-1 text-[13.5px] text-[var(--muted)]">{PAGE_DESCRIPTIONS[active]}</p>
-            </div>
-            {active !== 'Configuración' && (
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => openNewTaskModal('Pending')}
-                className="sm:hidden"
+        <main
+          className={`flex min-w-0 flex-1 flex-col overflow-x-clip transition-all duration-250 ${
+            sidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]'
+          }`}
+        >
+          <Header
+            active={active}
+            query={query}
+            onQueryChange={setQuery}
+            searchRef={searchRef}
+            modules={MODULE_ITEMS}
+            tasks={activeTasks}
+            projects={projects}
+            dark={settings.dark}
+            onToggleTheme={() => updateSettings({ dark: !settings.dark })}
+            onOpenModule={openModule}
+            onOpenMenu={() => setMenuOpen(true)}
+            onOpenNewTask={() => openNewTaskModal('Pending')}
+          />
+
+          <div className="w-full flex-1 px-5 py-6 lg:px-8 lg:py-7">
+            <PageHeading active={active} onNewTask={() => openNewTaskModal('Pending')} />
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={active}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
               >
-                <Plus className="h-4 w-4" />
-                Crear
-              </Button>
-            )}
+                {page}
+              </motion.div>
+            </AnimatePresence>
           </div>
+        </main>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={active}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.16, ease: 'easeOut' }}
-            >
-              {page}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </main>
+        {modalOpen && (
+          <TaskModal
+            projects={projects}
+            taskToEdit={editingTask}
+            initialStatus={modalInitialStatus}
+            initialProject={modalInitialProject}
+            onClose={() => {
+              setModalOpen(false);
+              setEditingTask(null);
+              setModalInitialProject(undefined);
+            }}
+            onCreate={handleCreateTask}
+            onUpdate={handleUpdateTask}
+          />
+        )}
 
-      {modalOpen && (
-        <TaskModal
-          projects={projects}
-          taskToEdit={editingTask}
-          initialStatus={modalInitialStatus}
-          initialProject={modalInitialProject}
-          onClose={() => {
-            setModalOpen(false);
-            setEditingTask(null);
-            setModalInitialProject(undefined);
+        <Toast message={toast} onClose={() => setToast('')} />
+
+        <StartupExperience
+          hydrated={hydrated}
+          settings={settings}
+          onPreviewSettings={updateSettings}
+          onFinishOnboarding={(userName) => {
+            updateSettings({ userName });
+            notify(`¡Bienvenido a Cronia, ${userName}!`);
           }}
-          onCreate={handleCreateTask}
-          onUpdate={handleUpdateTask}
         />
-      )}
-
-      <Toast message={toast} onClose={() => setToast('')} />
-
-      <StartupExperience
-        hydrated={hydrated}
-        settings={settings}
-        onPreviewSettings={updateSettings}
-        onFinishOnboarding={(userName) => {
-          updateSettings({ userName });
-          notify(`¡Bienvenido a Cronia, ${userName}!`);
-        }}
-      />
-    </div>
+      </div>
+    </I18nProvider>
   );
 }

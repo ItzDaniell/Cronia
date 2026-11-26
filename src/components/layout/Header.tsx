@@ -2,7 +2,7 @@ import type { RefObject } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronRight, Menu, Moon, Plus, Search, Sun, X } from 'lucide-react';
 import type { IconName, ModuleName, ModuleNavItem, Project, Task } from '@/types';
-import { STATUS_LABELS } from '@/modules/tasks/domain/rules';
+import { useI18n } from '@/i18n';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,12 +43,18 @@ export function Header({
   onOpenMenu,
   onOpenNewTask,
 }: HeaderProps) {
+  const { moduleLabel, statusLabel, tr } = useI18n();
   const q = query.trim().toLowerCase();
   const searchResults: SearchResult[] = q
     ? [
         ...modules
-          .filter((item) => item.name.toLowerCase().includes(q))
-          .map((item) => ({ label: item.name, meta: 'Módulo', module: item.name, icon: item.icon })),
+          .filter((item) => moduleLabel(item.name).toLowerCase().includes(q) || item.name.toLowerCase().includes(q))
+          .map((item) => ({
+            label: moduleLabel(item.name),
+            meta: tr('Módulo', 'Module'),
+            module: item.name,
+            icon: item.icon,
+          })),
         ...tasks
           .filter((task) =>
             `${task.title} ${task.project} ${task.category} ${task.tags.join(' ')}`
@@ -57,7 +63,7 @@ export function Header({
           )
           .map((task) => ({
             label: task.title,
-            meta: `${task.project} · ${STATUS_LABELS[task.status]}`,
+            meta: `${task.project} · ${statusLabel(task.status)}`,
             module: 'Tareas' as ModuleName,
             icon: 'check' as IconName,
           })),
@@ -65,7 +71,7 @@ export function Header({
           .filter((project) => `${project.name} ${project.desc}`.toLowerCase().includes(q))
           .map((project) => ({
             label: project.name,
-            meta: 'Proyecto',
+            meta: tr('Proyecto', 'Project'),
             module: 'Proyectos' as ModuleName,
             icon: 'folder' as IconName,
           })),
@@ -89,7 +95,7 @@ export function Header({
         <div className="hidden items-center gap-1.5 text-xs sm:flex">
           <span className="font-medium text-[var(--muted)]">Cronia</span>
           <ChevronRight className="h-3.5 w-3.5 text-[var(--muted)]/60" />
-          <span className="truncate font-semibold text-[var(--text)]">{active}</span>
+          <span className="truncate font-semibold text-[var(--text)]">{moduleLabel(active)}</span>
         </div>
       </div>
 
@@ -100,7 +106,7 @@ export function Header({
           ref={searchRef}
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Buscar o ir a..."
+          placeholder={tr('Buscar o ir a...', 'Search or jump to...')}
           className="h-8.5 rounded-lg bg-[var(--surface)] pl-8.5 pr-14 text-xs"
         />
         {query ? (
@@ -172,7 +178,7 @@ export function Header({
         </Button>
         <Button type="button" size="sm" onClick={onOpenNewTask} className="h-8.5">
           <Plus className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Nueva tarea</span>
+          <span className="hidden sm:inline">{tr('Nueva tarea', 'New task')}</span>
         </Button>
       </div>
     </header>

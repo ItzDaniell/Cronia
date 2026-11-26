@@ -33,6 +33,11 @@ pub fn restore_backup(
 }
 
 #[tauri::command]
+pub fn delete_backup(state: State<'_, DbState>, file_name: String) -> Result<(), String> {
+  db::backup::delete_backup(&state.backups_dir, &file_name)
+}
+
+#[tauri::command]
 pub fn run_auto_backup_if_needed(state: State<'_, DbState>) -> Result<Option<BackupInfo>, String> {
   let conn = state
     .conn

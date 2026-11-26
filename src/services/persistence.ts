@@ -269,4 +269,14 @@ export const persistence = {
     writeLocalAppData(restored);
     return restored;
   },
+
+  async deleteBackup(fileName: string): Promise<void> {
+    if (isTauri()) {
+      await invoke('delete_backup', { fileName });
+      return;
+    }
+    const backups = readLocal<Record<string, string>>('cronia.backups', {});
+    delete backups[fileName];
+    writeLocal('cronia.backups', backups);
+  },
 };

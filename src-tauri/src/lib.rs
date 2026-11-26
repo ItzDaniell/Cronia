@@ -73,6 +73,7 @@ pub fn run() {
       commands::backup::create_backup,
       commands::backup::list_backups,
       commands::backup::restore_backup,
+      commands::backup::delete_backup,
       commands::backup::run_auto_backup_if_needed,
       commands::system::send_native_notification,
       commands::system::set_autostart,

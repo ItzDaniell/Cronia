@@ -2,6 +2,7 @@ import { ArrowUpRight, Calendar, Pause, Play, Plus, Timer } from 'lucide-react';
 import type { CalendarEvent, ModuleName, Project, Task, WeekDayStat } from '@/types';
 import { isTaskCompleted, isTaskDueToday, isTaskOverdue, toLocalDateKey } from '@/modules/tasks/domain/rules';
 import { computeProjectProgress } from '@/utils/analytics';
+import { useI18n } from '@/i18n';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { WeeklyBars } from '@/components/ui/WeeklyBars';
@@ -37,12 +38,13 @@ export function DashboardPage({
   onToggleTimer,
   onOpenNewTask,
 }: DashboardPageProps) {
-  const dateLabel = new Intl.DateTimeFormat('es-ES', {
+  const { tr, locale } = useI18n();
+  const dateLabel = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
   }).format(now);
-  const timeLabel = new Intl.DateTimeFormat('es-ES', {
+  const timeLabel = new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',
   }).format(now);
@@ -65,12 +67,18 @@ export function DashboardPage({
           <div>
             <p className="m-0 text-xs font-medium capitalize text-[var(--muted)]">{dateLabel}</p>
             <h2 className="font-display m-0 mt-1 text-2xl font-extrabold tracking-tight text-[var(--text)]">
-              Hola, {userName}
+              {tr(`Hola, ${userName}`, `Hi, ${userName}`)}
             </h2>
             <p className="m-0 mt-1 text-sm text-[var(--muted)]">
               {pending > 0
-                ? `Tienes ${pending} tareas activas (${dueTodayCount} para hoy).`
-                : 'Tu espacio está despejado. Planifica tu próxima sesión.'}
+                ? tr(
+                    `Tienes ${pending} tareas activas (${dueTodayCount} para hoy).`,
+                    `You have ${pending} active tasks (${dueTodayCount} for today).`,
+                  )
+                : tr(
+                    'Tu espacio está despejado. Planifica tu próxima sesión.',
+                    'Your workspace is clear. Plan your next session.',
+                  )}
             </p>
           </div>
 
@@ -80,7 +88,7 @@ export function DashboardPage({
                 {timeLabel}
               </span>
               <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                Hora local
+                {tr('Hora local', 'Local time')}
               </span>
             </div>
 
@@ -93,12 +101,12 @@ export function DashboardPage({
               }}
             >
               {timerRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              {timerRunning ? 'Ver enfoque' : 'Enfoque 25m'}
+              {timerRunning ? tr('Ver enfoque', 'View focus') : tr('Enfoque 25m', 'Focus 25m')}
             </Button>
 
             <Button type="button" onClick={onOpenNewTask}>
               <Plus className="h-4 w-4" />
-              Nueva tarea
+              {tr('Nueva tarea', 'New task')}
             </Button>
           </div>
         </div>
@@ -106,16 +114,38 @@ export function DashboardPage({
 
       {/* KPI Strip */}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon="list" tone="green" label="Activas" value={pending} note={`${dueTodayCount} para hoy`} />
-        <MetricCard icon="check" tone="blue" label="Completadas" value={completed} note={`De ${tasks.length} totales`} />
+        <MetricCard
+          icon="list"
+          tone="green"
+          label={tr('Activas', 'Active')}
+          value={pending}
+          note={tr(`${dueTodayCount} para hoy`, `${dueTodayCount} due today`)}
+        />
+        <MetricCard
+          icon="check"
+          tone="blue"
+          label={tr('Completadas', 'Completed')}
+          value={completed}
+          note={tr(`De ${tasks.length} totales`, `Out of ${tasks.length} total`)}
+        />
         <MetricCard
           icon="flag"
           tone="orange"
-          label="Vencidas"
+          label={tr('Vencidas', 'Overdue')}
           value={overdue}
-          note={overdue > 0 ? 'Requiere atención' : 'Todo al día'}
+          note={
+            overdue > 0
+              ? tr('Requiere atención', 'Needs attention')
+              : tr('Todo al día', 'All caught up')
+          }
         />
-        <MetricCard icon="target" tone="violet" label="Progreso" value={`${progress}%`} note="Meta diaria: 100%" />
+        <MetricCard
+          icon="target"
+          tone="violet"
+          label={tr('Progreso', 'Progress')}
+          value={`${progress}%`}
+          note={tr('Meta diaria: 100%', 'Daily goal: 100%')}
+        />
       </div>
 
       {/* Bento Row 1 */}
@@ -123,11 +153,13 @@ export function DashboardPage({
         <Card className="overflow-hidden xl:col-span-7">
           <CardHeader>
             <div>
-              <CardTitle>Prioridades de hoy</CardTitle>
-              <CardDescription>{pending} actividades pendientes</CardDescription>
+              <CardTitle>{tr('Prioridades de hoy', "Today's priorities")}</CardTitle>
+              <CardDescription>
+                {tr(`${pending} actividades pendientes`, `${pending} pending activities`)}
+              </CardDescription>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={() => onNavigate('Tareas')}>
-              Abrir Tareas
+              {tr('Abrir Tareas', 'Open Tasks')}
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Button>
           </CardHeader>
@@ -137,11 +169,11 @@ export function DashboardPage({
         <Card className="xl:col-span-5">
           <CardHeader>
             <div>
-              <CardTitle>Agenda</CardTitle>
+              <CardTitle>{tr('Agenda', 'Schedule')}</CardTitle>
               <CardDescription className="capitalize">{dateLabel}</CardDescription>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={() => onNavigate('Calendario')}>
-              Calendario
+              {tr('Calendario', 'Calendar')}
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Button>
           </CardHeader>
@@ -149,9 +181,14 @@ export function DashboardPage({
             {todayEvents.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center">
                 <Calendar className="h-6 w-6 text-[var(--muted)]/60" />
-                <p className="m-0 text-sm font-semibold text-[var(--text)]">Sin eventos hoy</p>
+                <p className="m-0 text-sm font-semibold text-[var(--text)]">
+                  {tr('Sin eventos hoy', 'No events today')}
+                </p>
                 <p className="m-0 text-xs text-[var(--muted)]">
-                  Programa bloques de tiempo desde el Calendario.
+                  {tr(
+                    'Programa bloques de tiempo desde el Calendario.',
+                    'Schedule time blocks from the Calendar.',
+                  )}
                 </p>
               </div>
             ) : (
@@ -180,11 +217,13 @@ export function DashboardPage({
         <Card className="xl:col-span-7">
           <CardHeader>
             <div>
-              <CardTitle>Ritmo semanal</CardTitle>
-              <CardDescription>Actividad completada por día</CardDescription>
+              <CardTitle>{tr('Ritmo semanal', 'Weekly rhythm')}</CardTitle>
+              <CardDescription>
+                {tr('Actividad completada por día', 'Completed activity per day')}
+              </CardDescription>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={() => onNavigate('Estadísticas')}>
-              Analíticas
+              {tr('Analíticas', 'Analytics')}
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Button>
           </CardHeader>
@@ -194,11 +233,13 @@ export function DashboardPage({
         <Card className="xl:col-span-5">
           <CardHeader>
             <div>
-              <CardTitle>Proyectos activos</CardTitle>
-              <CardDescription>{activeProjects.length} en curso</CardDescription>
+              <CardTitle>{tr('Proyectos activos', 'Active projects')}</CardTitle>
+              <CardDescription>
+                {tr(`${activeProjects.length} en curso`, `${activeProjects.length} active`)}
+              </CardDescription>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={() => onNavigate('Proyectos')}>
-              Ver todos
+              {tr('Ver todos', 'View all')}
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Button>
           </CardHeader>
@@ -206,9 +247,14 @@ export function DashboardPage({
             {activeProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center">
                 <Timer className="h-6 w-6 text-[var(--muted)]/60" />
-                <p className="m-0 text-sm font-semibold text-[var(--text)]">Sin proyectos todavía</p>
+                <p className="m-0 text-sm font-semibold text-[var(--text)]">
+                  {tr('Sin proyectos todavía', 'No projects yet')}
+                </p>
                 <p className="m-0 text-xs text-[var(--muted)]">
-                  Agrupa tareas relacionadas creando tu primer proyecto.
+                  {tr(
+                    'Agrupa tareas relacionadas creando tu primer proyecto.',
+                    'Group related tasks by creating your first project.',
+                  )}
                 </p>
               </div>
             ) : (
@@ -236,7 +282,7 @@ export function DashboardPage({
                         />
                       </div>
                       <p className="m-0 mt-1.5 text-[11px] text-[var(--muted)]">
-                        {done} de {total} tareas completadas
+                        {tr(`${done} de ${total} tareas completadas`, `${done} of ${total} tasks completed`)}
                       </p>
                     </button>
                   );

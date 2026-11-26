@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Bell, Calendar, Download, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Reminder } from '@/types';
 import { downloadJson } from '@/utils/exportData';
+import { useI18n } from '@/i18n';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ReminderModal } from '@/components/modals/ReminderModal';
 import { Switch } from '@/components/ui/switch';
@@ -22,6 +23,7 @@ export function RemindersPage({
   onDeleteReminder,
   onNotify,
 }: RemindersPageProps) {
+  const { tr } = useI18n();
   const [editing, setEditing] = useState<number | 'new' | null>(null);
   const [prefs, setPrefs] = useState([true, true, false]);
 
@@ -50,12 +52,17 @@ export function RemindersPage({
       <Card className="overflow-hidden xl:col-span-8">
         <CardHeader>
           <div>
-            <CardTitle>Recordatorios programados</CardTitle>
-            <CardDescription>{reminders.filter((item) => item.enabled).length} alertas activas</CardDescription>
+            <CardTitle>{tr('Recordatorios programados', 'Scheduled reminders')}</CardTitle>
+            <CardDescription>
+              {tr(
+                `${reminders.filter((item) => item.enabled).length} alertas activas`,
+                `${reminders.filter((item) => item.enabled).length} active alerts`,
+              )}
+            </CardDescription>
           </div>
           <Button type="button" size="sm" onClick={() => setEditing('new')}>
             <Plus className="h-4 w-4" />
-            Programar
+            {tr('Programar', 'Schedule')}
           </Button>
         </CardHeader>
 
@@ -64,9 +71,14 @@ export function RemindersPage({
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--surface-2)] text-[var(--muted)]">
               <Bell className="h-6 w-6" />
             </div>
-            <p className="m-0 text-sm font-semibold text-[var(--text)]">No hay recordatorios programados</p>
+            <p className="m-0 text-sm font-semibold text-[var(--text)]">
+              {tr('No hay recordatorios programados', 'No scheduled reminders')}
+            </p>
             <p className="m-0 text-xs text-[var(--muted)]">
-              Crea uno para recibir alertas de tus actividades importantes.
+              {tr(
+                'Crea uno para recibir alertas de tus actividades importantes.',
+                'Create one to receive alerts for your important activities.',
+              )}
             </p>
           </div>
         ) : (
@@ -90,7 +102,7 @@ export function RemindersPage({
                   <Switch
                     checked={reminder.enabled}
                     onCheckedChange={() => onToggleReminder(reminder.id)}
-                    aria-label="Activar recordatorio"
+                    aria-label={tr('Activar recordatorio', 'Toggle reminder')}
                   />
                   <Button
                     type="button"
@@ -99,7 +111,7 @@ export function RemindersPage({
                     onClick={() => setEditing(reminder.id)}
                   >
                     <Pencil className="h-3.5 w-3.5" />
-                    Editar
+                    {tr('Editar', 'Edit')}
                   </Button>
                   <Button
                     type="button"
@@ -120,10 +132,14 @@ export function RemindersPage({
       <aside className="flex flex-col gap-5 xl:col-span-4">
         <Card>
           <CardHeader>
-            <CardTitle>Preferencias rápidas</CardTitle>
+            <CardTitle>{tr('Preferencias rápidas', 'Quick preferences')}</CardTitle>
           </CardHeader>
           <CardContent className="divide-y divide-[var(--line)] py-2">
-            {['Sonido', 'Mostrar en pantalla', 'Posponer 10 min'].map((item, index) => (
+            {[
+              tr('Sonido', 'Sound'),
+              tr('Mostrar en pantalla', 'Show on screen'),
+              tr('Posponer 10 min', 'Snooze 10 min'),
+            ].map((item, index) => (
               <div key={item} className="flex items-center justify-between py-3">
                 <span className="text-[13px] font-medium text-[var(--text)]">{item}</span>
                 <Switch
@@ -139,24 +155,24 @@ export function RemindersPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Historial de envíos</CardTitle>
+            <CardTitle>{tr('Historial de envíos', 'Delivery history')}</CardTitle>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => {
                 downloadJson(`cronia-recordatorios-${new Date().toISOString().slice(0, 10)}.json`, reminders);
-                onNotify('Recordatorios exportados (JSON)');
+                onNotify(tr('Recordatorios exportados (JSON)', 'Reminders exported (JSON)'));
               }}
             >
               <Download className="h-3.5 w-3.5" />
-              Exportar
+              {tr('Exportar', 'Export')}
             </Button>
           </CardHeader>
           <CardContent>
             {reminders.length === 0 ? (
               <p className="m-0 py-4 text-center text-xs text-[var(--muted)]">
-                Sin alertas registradas todavía.
+                {tr('Sin alertas registradas todavía.', 'No alerts logged yet.')}
               </p>
             ) : (
               <div className="divide-y divide-[var(--line)]">
@@ -166,7 +182,9 @@ export function RemindersPage({
                     <div className="min-w-0 flex-1">
                       <p className="m-0 truncate text-[13px] font-semibold">{r.title}</p>
                       <p className="m-0 text-xs text-[var(--muted)]">
-                        {r.enabled ? `Programada · ${r.time}` : 'Pausada'}
+                        {r.enabled
+                          ? tr(`Programada · ${r.time}`, `Scheduled · ${r.time}`)
+                          : tr('Pausada', 'Paused')}
                       </p>
                     </div>
                   </div>

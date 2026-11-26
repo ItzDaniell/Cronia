@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Folder, Zap } from 'lucide-react';
 import type { AccentTone, FocusSession, Project, Task, WeekDayStat } from '@/types';
 import { computePeriodMetrics, computeProjectProgress } from '@/utils/analytics';
+import { useI18n } from '@/i18n';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { WeeklyBars } from '@/components/ui/WeeklyBars';
@@ -30,8 +31,10 @@ const TONE_HEX: Record<AccentTone, string> = {
 };
 
 export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProps) {
+  const { tr, priorityLabel } = useI18n();
   const [period, setPeriod] = useState<'7 días' | '30 días' | '90 días'>('7 días');
   const days: 7 | 30 | 90 = period === '30 días' ? 30 : period === '90 días' ? 90 : 7;
+  const periodLabel = tr(`${days} días`, `${days} days`);
 
   const metrics = useMemo(() => computePeriodMetrics(tasks, sessions, days), [tasks, sessions, days]);
 
@@ -47,10 +50,10 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
   const totalProjectTasks = activeProjects.reduce((acc, p) => acc + p.total, 0);
 
   const priorityRows = [
-    { label: 'Urgente', count: urgentCount, color: '#f43f5e' },
-    { label: 'Alta', count: highCount, color: '#f59e0b' },
-    { label: 'Media', count: medCount, color: '#3b82f6' },
-    { label: 'Baja', count: lowCount, color: '#10b981' },
+    { label: priorityLabel('Urgent'), count: urgentCount, color: '#f43f5e' },
+    { label: priorityLabel('High'), count: highCount, color: '#f59e0b' },
+    { label: priorityLabel('Medium'), count: medCount, color: '#3b82f6' },
+    { label: priorityLabel('Low'), count: lowCount, color: '#10b981' },
   ];
 
   return (
@@ -58,21 +61,26 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
       {/* Period filter header */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-5 py-3.5">
         <div>
-          <p className="m-0 text-sm font-semibold text-[var(--text)]">Panel analítico</p>
+          <p className="m-0 text-sm font-semibold text-[var(--text)]">
+            {tr('Panel analítico', 'Analytics overview')}
+          </p>
           <p className="m-0 text-xs text-[var(--muted)]">
-            Datos calculados en vivo desde SQLite para los últimos {period}.
+            {tr(
+              `Datos calculados en vivo para los últimos ${periodLabel}.`,
+              `Live metrics computed for the last ${periodLabel}.`,
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2.5">
-          <span className="text-xs font-medium text-[var(--muted)]">Período</span>
+          <span className="text-xs font-medium text-[var(--muted)]">{tr('Período', 'Period')}</span>
           <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
             <SelectTrigger className="w-[130px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7 días">7 días</SelectItem>
-              <SelectItem value="30 días">30 días</SelectItem>
-              <SelectItem value="90 días">90 días</SelectItem>
+              <SelectItem value="7 días">{tr('7 días', '7 days')}</SelectItem>
+              <SelectItem value="30 días">{tr('30 días', '30 days')}</SelectItem>
+              <SelectItem value="90 días">{tr('90 días', '90 days')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -83,30 +91,30 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
         <MetricCard
           icon="timer"
           tone="green"
-          label="Tiempo enfocado"
+          label={tr('Tiempo enfocado', 'Focused time')}
           value={`${metrics.focusHours}h ${metrics.focusMins}m`}
-          note={`Últimos ${period}`}
+          note={tr(`Últimos ${periodLabel}`, `Last ${periodLabel}`)}
         />
         <MetricCard
           icon="check"
           tone="blue"
-          label="Tareas finalizadas"
+          label={tr('Tareas finalizadas', 'Completed tasks')}
           value={metrics.completedTasks}
-          note={`De ${metrics.totalTasks} registradas`}
+          note={tr(`De ${metrics.totalTasks} registradas`, `Out of ${metrics.totalTasks} total`)}
         />
         <MetricCard
           icon="target"
           tone="violet"
-          label="Tasa de finalización"
+          label={tr('Tasa de finalización', 'Completion rate')}
           value={`${metrics.completionRate}%`}
-          note="Completadas vs planificadas"
+          note={tr('Completadas vs planificadas', 'Completed vs planned')}
         />
         <MetricCard
           icon="bolt"
           tone="orange"
-          label="Sesiones totales"
+          label={tr('Sesiones totales', 'Total sessions')}
           value={metrics.sessionsCount}
-          note="Ciclos completados"
+          note={tr('Ciclos completados', 'Completed cycles')}
         />
       </div>
 
@@ -115,28 +123,37 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
         <Card className="xl:col-span-7">
           <CardHeader>
             <div>
-              <CardTitle>Actividad semanal</CardTitle>
-              <CardDescription>Porcentaje de progreso y enfoque por día</CardDescription>
+              <CardTitle>{tr('Actividad semanal', 'Weekly activity')}</CardTitle>
+              <CardDescription>
+                {tr('Porcentaje de progreso y enfoque por día', 'Daily progress and focus rate')}
+              </CardDescription>
             </div>
           </CardHeader>
           <WeeklyBars days={weekDays} large />
         </Card>
 
-        {/* Clean Horizontal Project Breakdown (replaces clunky donut) */}
+        {/* Clean Horizontal Project Breakdown */}
         <Card className="xl:col-span-5">
           <CardHeader>
             <div>
-              <CardTitle>Distribución por proyecto</CardTitle>
-              <CardDescription>Progreso real de tareas vinculadas</CardDescription>
+              <CardTitle>{tr('Distribución por proyecto', 'Project breakdown')}</CardTitle>
+              <CardDescription>
+                {tr('Progreso real de tareas vinculadas', 'Real progress of linked tasks')}
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
             {activeProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center">
                 <Folder className="h-6 w-6 text-[var(--muted)]/60" />
-                <p className="m-0 text-sm font-semibold text-[var(--text)]">Sin proyectos activos</p>
+                <p className="m-0 text-sm font-semibold text-[var(--text)]">
+                  {tr('Sin proyectos activos', 'No active projects')}
+                </p>
                 <p className="m-0 text-xs text-[var(--muted)]">
-                  Crea un proyecto y vincula tareas para ver su carga aquí.
+                  {tr(
+                    'Crea un proyecto y vincula tareas para ver su carga aquí.',
+                    'Create a project and link tasks to see workload here.',
+                  )}
                 </p>
               </div>
             ) : (
@@ -179,8 +196,10 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>Carga por prioridad</CardTitle>
-            <CardDescription>Tareas activas agrupadas por nivel de urgencia</CardDescription>
+            <CardTitle>{tr('Carga por prioridad', 'Workload by priority')}</CardTitle>
+            <CardDescription>
+              {tr('Tareas activas agrupadas por nivel de urgencia', 'Active tasks grouped by urgency')}
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -211,10 +230,16 @@ export function StatsPage({ tasks, projects, sessions, weekDays }: StatsPageProp
         </div>
         <div>
           <p className="m-0 text-sm font-semibold text-[var(--text)]">
-            Bloques cortos y constantes superan a las jornadas largas
+            {tr(
+              'Bloques cortos y constantes superan a las jornadas largas',
+              'Short, consistent focus blocks beat marathon sessions',
+            )}
           </p>
           <p className="m-0 text-xs text-[var(--muted)]">
-            Prioriza 2 bloques de enfoque de 25 minutos para tus tareas Urgentes o Altas al inicio del día.
+            {tr(
+              'Prioriza 2 bloques de enfoque de 25 minutos para tus tareas Urgentes o Altas al inicio del día.',
+              'Prioritize 2 focus blocks of 25 minutes for your Urgent or High tasks at the start of the day.',
+            )}
           </p>
         </div>
       </Card>

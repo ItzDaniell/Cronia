@@ -15,6 +15,7 @@ import {
 import type { FocusSession, Task } from '@/types';
 import { downloadJson } from '@/utils/exportData';
 import { ALERT_TONE_LABELS, playAlertTone, type AlertTone } from '@/utils/sound';
+import { useI18n } from '@/i18n';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,10 +75,18 @@ export function FocusPage({
   onCompleteSession,
   onNotify,
 }: FocusPageProps) {
+  const { tr, locale } = useI18n();
   const [phase, setPhase] = useState<FocusPhase>('Enfoque');
   const [customMinutes, setCustomMinutes] = useState<number>(readCustomMinutes);
   const [draftCustom, setDraftCustom] = useState<string>(String(customMinutes));
   const [editOpen, setEditOpen] = useState(false);
+
+  const phaseLabel = (item: FocusPhase) => {
+    if (item === 'Enfoque') return tr('Enfoque', 'Focus');
+    if (item === 'Descanso corto') return tr('Descanso corto', 'Short break');
+    if (item === 'Descanso largo') return tr('Descanso largo', 'Long break');
+    return tr('Personalizado', 'Custom');
+  };
 
   const durations: Record<FocusPhase, number> = {
     Enfoque: 25,
@@ -112,7 +121,12 @@ export function FocusPage({
     onSetRunning(false);
     onSetSeconds(clamped * 60);
     setEditOpen(false);
-    onNotify(`Tiempo personalizado guardado (${clamped} min)`);
+    onNotify(
+      tr(
+        `Tiempo personalizado guardado (${clamped} min)`,
+        `Custom duration saved (${clamped} min)`,
+      ),
+    );
   };
 
   const minutes = String(Math.floor(seconds / 60)).padStart(2, '0');
@@ -126,7 +140,7 @@ export function FocusPage({
   const formattedTotal = hours > 0 ? `${hours}h ${remMins}m` : `${remMins}m`;
   const dailyGoalPct = Math.min(100, Math.round((totalMinutes / 120) * 100));
 
-  const todayLabel = new Intl.DateTimeFormat('es-ES', {
+  const todayLabel = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -146,7 +160,7 @@ export function FocusPage({
                 }`}
               />
               <span className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
-                {running ? 'Sesión en curso' : 'Zen Studio · Listo'}
+                {running ? tr('Sesión en curso', 'Session running') : tr('Zen Studio · Listo', 'Zen Studio · Ready')}
               </span>
             </div>
 
@@ -160,15 +174,17 @@ export function FocusPage({
               <PopoverTrigger asChild>
                 <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
                   <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Tiempo personalizado
+                  {tr('Tiempo personalizado', 'Custom duration')}
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-64 p-4">
                 <form onSubmit={handleSaveCustomTime} className="space-y-3">
                   <div>
-                    <p className="m-0 text-sm font-bold text-[var(--text)]">Tiempo personalizado</p>
+                    <p className="m-0 text-sm font-bold text-[var(--text)]">
+                      {tr('Tiempo personalizado', 'Custom duration')}
+                    </p>
                     <p className="m-0 text-xs text-[var(--muted)]">
-                      Define tu duración favorita (1–180 min)
+                      {tr('Define tu duración favorita (1–180 min)', 'Set your preferred duration (1–180 min)')}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -184,7 +200,7 @@ export function FocusPage({
                     <span className="text-xs font-medium text-[var(--muted)]">min</span>
                   </div>
                   <Button type="submit" size="sm" className="w-full">
-                    Guardar tiempo
+                    {tr('Guardar tiempo', 'Save duration')}
                   </Button>
                 </form>
               </PopoverContent>
@@ -203,7 +219,7 @@ export function FocusPage({
                     : 'text-[var(--muted)] hover:text-[var(--text)]'
                 }`}
               >
-                {item}
+                {phaseLabel(item)}
                 <span className="font-mono-num text-[11px] opacity-75">{durations[item]}m</span>
               </button>
             ))}
@@ -238,13 +254,13 @@ export function FocusPage({
 
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
               <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--accent)]">
-                {phase}
+                {phaseLabel(phase)}
               </span>
               <span className="font-mono-num my-1 text-5xl font-bold tracking-tight text-[var(--text)]">
                 {minutes}:{secs}
               </span>
               <span className="text-xs text-[var(--muted)]">
-                {running ? 'Mantén el enfoque' : 'Pulsa iniciar'}
+                {running ? tr('Mantén el enfoque', 'Stay focused') : tr('Pulsa iniciar', 'Press start')}
               </span>
             </div>
           </div>
@@ -259,7 +275,7 @@ export function FocusPage({
                 onSetRunning(false);
                 onSetSeconds(duration * 60);
               }}
-              aria-label="Reiniciar sesión"
+              aria-label={tr('Reiniciar sesión', 'Reset session')}
             >
               <RotateCcw className="h-4 w-4" />
             </Button>
@@ -271,7 +287,7 @@ export function FocusPage({
               onClick={() => onSetRunning(!running)}
             >
               {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              {running ? 'Pausar' : 'Iniciar enfoque'}
+              {running ? tr('Pausar', 'Pause') : tr('Iniciar enfoque', 'Start focus')}
             </Button>
 
             <Button
@@ -284,8 +300,8 @@ export function FocusPage({
                 onCompleteSession(selectedTask, duration);
                 onSetSeconds(duration * 60);
               }}
-              aria-label="Completar y guardar sesión"
-              title="Completar y guardar sesión"
+              aria-label={tr('Completar y guardar sesión', 'Complete and save session')}
+              title={tr('Completar y guardar sesión', 'Complete and save session')}
             >
               <Check className="h-4 w-4" />
             </Button>
@@ -298,7 +314,7 @@ export function FocusPage({
             <div className="flex flex-col gap-1.5">
               <Label className="flex h-4 items-center gap-1.5 text-[11px] uppercase tracking-wider">
                 <Volume2 className="h-3.5 w-3.5 text-[var(--accent)]" />
-                Tono de alerta
+                {tr('Tono de alerta', 'Alert tone')}
               </Label>
               <div className="flex items-center gap-2">
                 <Select
@@ -327,8 +343,8 @@ export function FocusPage({
                   className="h-9 w-9 shrink-0 bg-[var(--surface)]"
                   onClick={() => playAlertTone(alertTone)}
                   disabled={alertTone === 'silencio'}
-                  title="Probar tono"
-                  aria-label="Probar tono de alerta"
+                  title={tr('Probar tono', 'Test tone')}
+                  aria-label={tr('Probar tono de alerta', 'Test alert tone')}
                 >
                   <Volume2 className="h-4 w-4" />
                 </Button>
@@ -338,7 +354,7 @@ export function FocusPage({
             <div className="flex flex-col gap-1.5">
               <Label className="flex h-4 items-center gap-1.5 text-[11px] uppercase tracking-wider">
                 <Target className="h-3.5 w-3.5 text-[var(--accent)]" />
-                Tarea asociada
+                {tr('Tarea asociada', 'Linked task')}
               </Label>
               <Select value={selectedTask} onValueChange={onSelectTask}>
                 <SelectTrigger className="bg-[var(--surface)]">
@@ -350,7 +366,9 @@ export function FocusPage({
                       {t.title}
                     </SelectItem>
                   ))}
-                  <SelectItem value="Sin tarea asociada">Sin tarea asociada</SelectItem>
+                  <SelectItem value="Sin tarea asociada">
+                    {tr('Sin tarea asociada', 'No linked task')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -363,7 +381,7 @@ export function FocusPage({
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>Resumen de hoy</CardTitle>
+              <CardTitle>{tr('Resumen de hoy', "Today's summary")}</CardTitle>
               <CardDescription className="capitalize">{todayLabel}</CardDescription>
             </div>
             <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-bold text-[var(--accent)]">
@@ -376,23 +394,23 @@ export function FocusPage({
               <div className="px-2">
                 <Timer className="mx-auto mb-1 h-4 w-4 text-[var(--accent)]" />
                 <p className="font-mono-num m-0 text-base font-bold">{formattedTotal}</p>
-                <p className="m-0 text-[11px] text-[var(--muted)]">enfocado</p>
+                <p className="m-0 text-[11px] text-[var(--muted)]">{tr('enfocado', 'focused')}</p>
               </div>
               <div className="px-2">
                 <Check className="mx-auto mb-1 h-4 w-4 text-emerald-500" />
                 <p className="font-mono-num m-0 text-base font-bold">{sessions.length}</p>
-                <p className="m-0 text-[11px] text-[var(--muted)]">sesiones</p>
+                <p className="m-0 text-[11px] text-[var(--muted)]">{tr('sesiones', 'sessions')}</p>
               </div>
               <div className="px-2">
                 <Target className="mx-auto mb-1 h-4 w-4 text-sky-500" />
                 <p className="font-mono-num m-0 text-base font-bold">{dailyGoalPct}%</p>
-                <p className="m-0 text-[11px] text-[var(--muted)]">meta</p>
+                <p className="m-0 text-[11px] text-[var(--muted)]">{tr('meta', 'goal')}</p>
               </div>
             </div>
 
             <div>
               <div className="mb-1.5 flex justify-between text-xs text-[var(--muted)]">
-                <span>Meta diaria</span>
+                <span>{tr('Meta diaria', 'Daily goal')}</span>
                 <strong className="font-mono-num text-[var(--text)]">{formattedTotal} / 2h</strong>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
@@ -407,24 +425,29 @@ export function FocusPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Sesiones recientes</CardTitle>
+            <CardTitle>{tr('Sesiones recientes', 'Recent sessions')}</CardTitle>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => {
                 downloadJson(`cronia-focus-sessions-${new Date().toISOString().slice(0, 10)}.json`, sessions);
-                onNotify('Historial de enfoque exportado (JSON)');
+                onNotify(
+                  tr('Historial de enfoque exportado (JSON)', 'Focus history exported (JSON)'),
+                );
               }}
             >
               <Download className="h-3.5 w-3.5" />
-              Exportar
+              {tr('Exportar', 'Export')}
             </Button>
           </CardHeader>
           <CardContent>
             {sessions.length === 0 ? (
               <p className="m-0 py-4 text-center text-xs text-[var(--muted)]">
-                Completa un ciclo de enfoque para ver tu historial.
+                {tr(
+                  'Completa un ciclo de enfoque para ver tu historial.',
+                  'Complete a focus cycle to see your history.',
+                )}
               </p>
             ) : (
               <div className="divide-y divide-[var(--line)]">
@@ -432,7 +455,11 @@ export function FocusPage({
                   <div key={s.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                     <span className={`h-7 w-1 rounded-full ${s.color}`} />
                     <div className="min-w-0 flex-1">
-                      <p className="m-0 truncate text-[13px] font-semibold">{s.taskTitle}</p>
+                      <p className="m-0 truncate text-[13px] font-semibold">
+                        {s.taskTitle === 'Sin tarea asociada'
+                          ? tr('Sin tarea asociada', 'No linked task')
+                          : s.taskTitle}
+                      </p>
                       <p className="font-mono-num m-0 text-[11px] text-[var(--muted)]">
                         {s.durationMinutes} min · {s.completedAt}
                       </p>

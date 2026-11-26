@@ -9,11 +9,9 @@ import {
   isTaskCompleted,
   isTaskDeleted,
   isTaskOverdue,
-  PRIORITY_LABELS,
-  RECURRENCE_LABELS,
-  STATUS_LABELS,
   TASK_STATUSES,
 } from '@/modules/tasks/domain/rules';
+import { useI18n } from '@/i18n';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +46,7 @@ export function TaskRows({
   onToggleSubtask,
   compact = false,
 }: TaskRowsProps) {
+  const { tr, priorityLabel, statusLabel, recurrenceLabel } = useI18n();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const shown = compact ? tasks.slice(0, 5) : tasks;
 
@@ -57,9 +56,14 @@ export function TaskRows({
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--surface-2)] text-[var(--muted)]">
           <CheckCircle2 className="h-6 w-6" />
         </div>
-        <p className="m-0 text-sm font-semibold text-[var(--text)]">No hay tareas en esta vista</p>
+        <p className="m-0 text-sm font-semibold text-[var(--text)]">
+          {tr('No hay tareas en esta vista', 'No tasks in this view')}
+        </p>
         <p className="m-0 text-xs text-[var(--muted)]">
-          Ajusta los filtros o crea una nueva actividad para comenzar.
+          {tr(
+            'Ajusta los filtros o crea una nueva actividad para comenzar.',
+            'Adjust your filters or create a new activity to get started.',
+          )}
         </p>
       </div>
     );
@@ -132,7 +136,7 @@ export function TaskRows({
                   {!compact && task.recurrence.frequency !== 'none' && (
                     <Badge variant="default" className="gap-1 py-0 text-[11px]">
                       <Repeat className="h-3 w-3" />
-                      {RECURRENCE_LABELS[task.recurrence.frequency]}
+                      {recurrenceLabel(task.recurrence.frequency)}
                     </Badge>
                   )}
                   {!compact &&
@@ -150,13 +154,16 @@ export function TaskRows({
                     value={task.status}
                     onValueChange={(v) => onChangeStatus(task.id, v as TaskStatus)}
                   >
-                    <SelectTrigger className="h-8 w-[134px] text-xs" aria-label={`Estado de ${task.title}`}>
+                    <SelectTrigger
+                      className="h-8 w-[134px] text-xs"
+                      aria-label={tr(`Estado de ${task.title}`, `Status of ${task.title}`)}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {TASK_STATUSES.map((st) => (
                         <SelectItem key={st} value={st}>
-                          {STATUS_LABELS[st]}
+                          {statusLabel(st)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -164,7 +171,7 @@ export function TaskRows({
                 )}
 
                 <span className={`priority p-${task.priority.toLowerCase()}`}>
-                  {PRIORITY_LABELS[task.priority]}
+                  {priorityLabel(task.priority)}
                 </span>
 
                 <span
@@ -185,8 +192,8 @@ export function TaskRows({
                         size="icon"
                         className="h-8 w-8"
                         onClick={() => onEditTask(task)}
-                        aria-label={`Editar ${task.title}`}
-                        title="Editar tarea"
+                        aria-label={tr(`Editar ${task.title}`, `Edit ${task.title}`)}
+                        title={tr('Editar tarea', 'Edit task')}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -198,8 +205,8 @@ export function TaskRows({
                         size="icon"
                         className="h-8 w-8 hover:text-rose-500"
                         onClick={() => onDeleteTask(task.id)}
-                        aria-label={`Mover ${task.title} a la papelera`}
-                        title="Mover a la papelera"
+                        aria-label={tr(`Mover ${task.title} a la papelera`, `Move ${task.title} to trash`)}
+                        title={tr('Mover a la papelera', 'Move to trash')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -217,7 +224,7 @@ export function TaskRows({
                         onClick={() => onRestoreTask(task.id)}
                       >
                         <RotateCcw className="h-3.5 w-3.5" />
-                        Restaurar
+                        {tr('Restaurar', 'Restore')}
                       </Button>
                     )}
                     {onPermanentDeleteTask && (
@@ -227,7 +234,7 @@ export function TaskRows({
                         size="icon"
                         className="h-8 w-8"
                         onClick={() => onPermanentDeleteTask(task.id)}
-                        title="Eliminar permanentemente"
+                        title={tr('Eliminar permanentemente', 'Delete permanently')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

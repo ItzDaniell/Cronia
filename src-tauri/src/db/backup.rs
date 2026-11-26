@@ -120,6 +120,19 @@ pub fn restore_backup(
   Ok(())
 }
 
+pub fn delete_backup(backups_dir: &Path, file_name: &str) -> Result<(), String> {
+  let clean_name = sanitize_file_name(file_name)?;
+  let target_path = backups_dir.join(&clean_name);
+
+  if !target_path.exists() {
+    return Err("La copia de seguridad seleccionada no existe".into());
+  }
+
+  fs::remove_file(&target_path)
+    .map_err(|e| format!("No se pudo eliminar la copia de seguridad: {e}"))?;
+  Ok(())
+}
+
 /// Crea una copia automática si no existe ninguna o si pasaron más de 24h desde la última,
 /// y conserva solo los últimos `max_keep` respaldos para no llenar el disco.
 pub fn maybe_auto_backup(

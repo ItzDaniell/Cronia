@@ -5,10 +5,9 @@ import {
   formatDueDateLabel,
   formatEstimatedMinutes,
   getSubtaskProgress,
-  PRIORITY_LABELS,
-  STATUS_LABELS,
   TASK_STATUSES,
 } from '@/modules/tasks/domain/rules';
+import { useI18n } from '@/i18n';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -20,6 +19,7 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ tasks, onAdd, onChangeStatus, onEditTask }: KanbanBoardProps) {
+  const { tr, statusLabel, priorityLabel } = useI18n();
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [overColumn, setOverColumn] = useState<TaskStatus | null>(null);
 
@@ -49,7 +49,7 @@ export function KanbanBoard({ tasks, onAdd, onChangeStatus, onEditTask }: Kanban
             }`}
           >
             <header className="mb-3 flex items-center gap-2 px-1">
-              <span className="text-[13px] font-bold text-[var(--text)]">{STATUS_LABELS[column]}</span>
+              <span className="text-[13px] font-bold text-[var(--text)]">{statusLabel(column)}</span>
               <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-bold text-[var(--muted)]">
                 {columnTasks.length}
               </span>
@@ -59,7 +59,7 @@ export function KanbanBoard({ tasks, onAdd, onChangeStatus, onEditTask }: Kanban
                 size="icon"
                 className="ml-auto h-7 w-7"
                 onClick={() => onAdd(column)}
-                aria-label={`Añadir en ${STATUS_LABELS[column]}`}
+                aria-label={tr(`Añadir en ${statusLabel(column)}`, `Add to ${statusLabel(column)}`)}
               >
                 <Plus className="h-3.5 w-3.5" />
               </Button>
@@ -89,12 +89,12 @@ export function KanbanBoard({ tasks, onAdd, onChangeStatus, onEditTask }: Kanban
                         {task.category}
                       </span>
                       <span className={`priority p-${task.priority.toLowerCase()} text-[11px]`}>
-                        {PRIORITY_LABELS[task.priority]}
+                        {priorityLabel(task.priority)}
                       </span>
                     </div>
                     <h4 className="mb-1 mt-2.5 text-sm font-bold text-[var(--text)]">{task.title}</h4>
                     <p className="m-0 line-clamp-2 text-xs text-[var(--muted)]">
-                      {task.description || 'Sin descripción'}
+                      {task.description || tr('Sin descripción', 'No description')}
                     </p>
                     {task.tags.length > 0 && (
                       <div className="mt-2.5 flex flex-wrap gap-1">

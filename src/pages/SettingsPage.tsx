@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Moon, Sun, Trash2 } from 'lucide-react';
 import type { AccentTone, BackupInfo, IconName, UserSettings } from '@/types';
+import { useI18n } from '@/i18n';
 import { Icon } from '@/components/ui/Icon';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SettingRow } from '@/components/ui/SettingRow';
@@ -21,19 +22,19 @@ interface SettingsPageProps {
   onUpdateSettings: (partial: Partial<UserSettings>) => void;
   onCreateBackup: () => void;
   onRestoreBackup: (fileName: string) => void;
+  onDeleteBackup: (fileName: string) => void;
   onResetAllData: () => void;
   onNotify: (message: string) => void;
 }
 
-const SETTINGS_TABS: [string, IconName][] = [
-  ['General', 'settings'],
-  ['Notificaciones', 'bell'],
-  ['Apariencia', 'palette'],
-  ['Calendario', 'calendar'],
-  ['Atajos globales', 'bolt'],
-  ['Copia y restauración', 'folder'],
-  ['Privacidad', 'info'],
-];
+type TabId =
+  | 'general'
+  | 'notifications'
+  | 'appearance'
+  | 'calendar'
+  | 'shortcuts'
+  | 'backup'
+  | 'privacy';
 
 const ACCENT_COLORS: AccentTone[] = ['violet', 'blue', 'cyan', 'green', 'orange', 'red'];
 
@@ -43,10 +44,12 @@ export function SettingsPage({
   onUpdateSettings,
   onCreateBackup,
   onRestoreBackup,
+  onDeleteBackup,
   onResetAllData,
   onNotify,
 }: SettingsPageProps) {
-  const [tab, setTab] = useState('General');
+  const { tr } = useI18n();
+  const [tab, setTab] = useState<TabId>('general');
   const [draftName, setDraftName] = useState(settings.userName);
 
   useEffect(() => {
@@ -56,15 +59,27 @@ export function SettingsPage({
   const handleSaveChanges = () => {
     const clean = draftName.trim();
     if (!clean) {
-      onNotify('El nombre de usuario no puede estar vacío');
+      onNotify(tr('El nombre de usuario no puede estar vacío', 'Username cannot be empty'));
       setDraftName(settings.userName);
       return;
     }
     if (clean !== settings.userName) {
       onUpdateSettings({ userName: clean });
     }
-    onNotify('Preferencias guardadas correctamente');
+    onNotify(tr('Preferencias guardadas correctamente', 'Preferences saved successfully'));
   };
+
+  const tabs: { id: TabId; label: string; icon: IconName }[] = [
+    { id: 'general', label: tr('General', 'General'), icon: 'settings' },
+    { id: 'notifications', label: tr('Notificaciones', 'Notifications'), icon: 'bell' },
+    { id: 'appearance', label: tr('Apariencia', 'Appearance'), icon: 'palette' },
+    { id: 'calendar', label: tr('Calendario', 'Calendar'), icon: 'calendar' },
+    { id: 'shortcuts', label: tr('Atajos globales', 'Shortcuts'), icon: 'bolt' },
+    { id: 'backup', label: tr('Copia y restauración', 'Backup & Restore'), icon: 'folder' },
+    { id: 'privacy', label: tr('Privacidad', 'Privacy'), icon: 'info' },
+  ];
+
+  const activeTabMeta = tabs.find((item) => item.id === tab) ?? tabs[0];
 
   const sw = (key: keyof UserSettings) => (
     <Switch
@@ -73,10 +88,13 @@ export function SettingsPage({
     />
   );
 
-  const contents: Record<string, ReactNode> = {
-    General: (
+  const contents: Record<TabId, ReactNode> = {
+    general: (
       <>
-        <SettingRow title="Nombre de usuario" desc="Se muestra en el saludo del Dashboard y tu perfil">
+        <SettingRow
+          title={tr('Nombre de usuario', 'Username')}
+          desc={tr('Se muestra en el saludo del Dashboard y tu perfil', 'Shown in the Dashboard greeting and your profile')}
+        >
           <Input
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
@@ -89,13 +107,22 @@ export function SettingsPage({
             className="w-[220px]"
           />
         </SettingRow>
-        <SettingRow title="Iniciar con Windows" desc="Abrir Cronia automáticamente al iniciar sesión">
+        <SettingRow
+          title={tr('Iniciar con Windows', 'Launch on startup')}
+          desc={tr('Abrir Cronia automáticamente al iniciar sesión', 'Automatically open Cronia when you sign in')}
+        >
           {sw('launchOnStartup')}
         </SettingRow>
-        <SettingRow title="Minimizar a la bandeja" desc="Mantener Cronia activo al cerrar la ventana">
+        <SettingRow
+          title={tr('Minimizar a la bandeja', 'Minimize to tray')}
+          desc={tr('Mantener Cronia activo al cerrar la ventana', 'Keep Cronia running in the system tray on close')}
+        >
           {sw('minimizeToTray')}
         </SettingRow>
-        <SettingRow title="Idioma" desc="Idioma utilizado en toda la interfaz">
+        <SettingRow
+          title={tr('Idioma', 'Language')}
+          desc={tr('Idioma utilizado en toda la interfaz', 'Language used across the entire interface')}
+        >
           <Select
             value={settings.language}
             onValueChange={(v) => onUpdateSettings({ language: v as UserSettings['language'] })}
@@ -111,19 +138,28 @@ export function SettingsPage({
         </SettingRow>
       </>
     ),
-    Notificaciones: (
+    notifications: (
       <>
-        <SettingRow title="Notificaciones nativas" desc="Usar el Centro de actividades de Windows">
+        <SettingRow
+          title={tr('Notificaciones nativas', 'Native notifications')}
+          desc={tr('Usar el Centro de actividades de Windows', 'Use the Windows Action Center for alerts')}
+        >
           {sw('nativeNotifications')}
         </SettingRow>
-        <SettingRow title="Sonido" desc="Reproducir un sonido al mostrar una alerta">
+        <SettingRow
+          title={tr('Sonido', 'Sound')}
+          desc={tr('Reproducir un sonido al mostrar una alerta', 'Play an alert sound when notifications fire')}
+        >
           {sw('soundEnabled')}
         </SettingRow>
       </>
     ),
-    Apariencia: (
+    appearance: (
       <>
-        <SettingRow title="Tema" desc="Selecciona el aspecto de la aplicación">
+        <SettingRow
+          title={tr('Tema', 'Theme')}
+          desc={tr('Selecciona el aspecto de la aplicación', 'Choose the application appearance')}
+        >
           <div className="flex gap-2">
             <Button
               type="button"
@@ -132,7 +168,7 @@ export function SettingsPage({
               onClick={() => onUpdateSettings({ dark: false })}
             >
               <Sun className="h-4 w-4" />
-              Claro
+              {tr('Claro', 'Light')}
             </Button>
             <Button
               type="button"
@@ -141,11 +177,14 @@ export function SettingsPage({
               onClick={() => onUpdateSettings({ dark: true })}
             >
               <Moon className="h-4 w-4" />
-              Oscuro
+              {tr('Oscuro', 'Dark')}
             </Button>
           </div>
         </SettingRow>
-        <SettingRow title="Color de acento" desc="Personaliza el color principal de Cronia en vivo">
+        <SettingRow
+          title={tr('Color de acento', 'Accent color')}
+          desc={tr('Personaliza el color principal de Cronia en vivo', 'Customize Cronia’s primary accent color live')}
+        >
           <div className="colors">
             {ACCENT_COLORS.map((color) => (
               <button
@@ -153,7 +192,7 @@ export function SettingsPage({
                 className={color}
                 onClick={() => {
                   onUpdateSettings({ accent: color });
-                  onNotify(`Color de acento actualizado`);
+                  onNotify(tr('Color de acento actualizado', 'Accent color updated'));
                 }}
                 key={color}
                 aria-label={`Color ${color}`}
@@ -167,9 +206,12 @@ export function SettingsPage({
         </SettingRow>
       </>
     ),
-    Calendario: (
+    calendar: (
       <>
-        <SettingRow title="Primer día de la semana" desc="Aplicado a todas las vistas">
+        <SettingRow
+          title={tr('Primer día de la semana', 'First day of week')}
+          desc={tr('Aplicado a todas las vistas', 'Applied across all calendar views')}
+        >
           <Select
             value={settings.firstDayOfWeek}
             onValueChange={(v) =>
@@ -180,73 +222,107 @@ export function SettingsPage({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Lunes">Lunes</SelectItem>
-              <SelectItem value="Domingo">Domingo</SelectItem>
+              <SelectItem value="Lunes">{tr('Lunes', 'Monday')}</SelectItem>
+              <SelectItem value="Domingo">{tr('Domingo', 'Sunday')}</SelectItem>
             </SelectContent>
           </Select>
         </SettingRow>
       </>
     ),
-    'Atajos globales': (
+    shortcuts: (
       <>
-        <SettingRow title="Buscar rápidamente" desc="Enfoca la barra de búsqueda superior">
+        <SettingRow
+          title={tr('Buscar rápidamente', 'Quick search')}
+          desc={tr('Enfoca la barra de búsqueda superior', 'Focus the top command search bar')}
+        >
           <kbd className="rounded-md border border-[var(--line)] bg-[var(--surface-2)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)]">
             Ctrl + K
           </kbd>
         </SettingRow>
-        <SettingRow title="Cerrar búsqueda" desc="Limpia el filtro actual">
+        <SettingRow
+          title={tr('Cerrar búsqueda', 'Clear search')}
+          desc={tr('Limpia el filtro actual', 'Clears the active search query')}
+        >
           <kbd className="rounded-md border border-[var(--line)] bg-[var(--surface-2)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)]">
             Esc
           </kbd>
         </SettingRow>
       </>
     ),
-    'Copia y restauración': (
+    backup: (
       <>
-        <SettingRow title="Copia automática" desc="Crear una copia local cada 24 horas">
+        <SettingRow
+          title={tr('Copia automática', 'Automatic backup')}
+          desc={tr('Crear una copia cada 24 horas', 'Create an automatic snapshot every 24 hours')}
+        >
           {sw('autoBackup')}
         </SettingRow>
-        <SettingRow title="Crear copia ahora" desc="Genera un snapshot completo de la base de datos SQLite">
+        <SettingRow
+          title={tr('Crear copia ahora', 'Create backup now')}
+          desc={tr('Genera un snapshot completo de tu base de datos', 'Generates a full SQLite database snapshot')}
+        >
           <Button type="button" variant="outline" size="sm" onClick={onCreateBackup}>
-            Crear copia
+            {tr('Crear copia', 'Create backup')}
           </Button>
         </SettingRow>
         {backups.length > 0 && (
           <div className="pt-2">
-            {backups.slice(0, 5).map((b) => (
+            {backups.map((b) => (
               <SettingRow
                 key={b.fileName}
                 title={b.fileName}
                 desc={`${Math.max(1, Math.round(b.sizeBytes / 1024))} KB`}
               >
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onRestoreBackup(b.fileName)}
-                >
-                  Restaurar
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onRestoreBackup(b.fileName)}
+                  >
+                    {tr('Restaurar', 'Restore')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-[var(--muted)] hover:text-rose-500"
+                    onClick={() => onDeleteBackup(b.fileName)}
+                    title={tr('Eliminar copia', 'Delete backup')}
+                    aria-label={tr(`Eliminar ${b.fileName}`, `Delete ${b.fileName}`)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </SettingRow>
             ))}
           </div>
         )}
       </>
     ),
-    Privacidad: (
+    privacy: (
       <>
-        <SettingRow title="Datos locales" desc="Tus tareas se guardan únicamente en este dispositivo">
+        <SettingRow
+          title={tr('Datos en tu equipo', 'On-device data')}
+          desc={tr('Tus tareas se guardan únicamente en este dispositivo', 'Your data stays strictly on this device')}
+        >
           <span className="rounded-lg bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-500">
-            Protegidos
+            {tr('Protegidos', 'Protected')}
           </span>
         </SettingRow>
-        <SettingRow title="Diagnósticos anónimos" desc="Nunca incluye contenido de tareas">
+        <SettingRow
+          title={tr('Diagnósticos anónimos', 'Anonymous diagnostics')}
+          desc={tr('Nunca incluye contenido de tareas', 'Never includes task contents')}
+        >
           {sw('diagnostics')}
         </SettingRow>
-        <SettingRow title="Restablecer datos locales" desc="Borra todos los datos guardados y deja Cronia vacío">
+        <SettingRow
+          title={tr('Restablecer datos', 'Reset all data')}
+          desc={tr('Borra todos los datos guardados y deja Cronia vacío', 'Erases all saved records and resets Cronia')}
+        >
           <Button type="button" variant="destructive" size="sm" onClick={onResetAllData}>
             <Trash2 className="h-3.5 w-3.5" />
-            Restablecer
+            {tr('Restablecer', 'Reset')}
           </Button>
         </SettingRow>
       </>
@@ -257,19 +333,19 @@ export function SettingsPage({
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
       <Card className="h-fit p-2 lg:col-span-3">
         <div className="flex flex-row gap-1 overflow-x-auto lg:flex-col">
-          {SETTINGS_TABS.map(([name, icon]) => (
+          {tabs.map(({ id, label, icon }) => (
             <button
               type="button"
-              key={name}
-              onClick={() => setTab(name)}
+              key={id}
+              onClick={() => setTab(id)}
               className={`flex h-10 shrink-0 items-center gap-2.5 rounded-xl px-3 text-[13px] font-medium transition-colors lg:w-full ${
-                tab === name
+                tab === id
                   ? 'bg-[var(--accent-soft)] font-semibold text-[var(--accent)]'
                   : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
               }`}
             >
               <Icon name={icon} size={16} />
-              <span className="whitespace-nowrap">{name}</span>
+              <span className="whitespace-nowrap">{label}</span>
             </button>
           ))}
         </div>
@@ -278,14 +354,19 @@ export function SettingsPage({
       <Card className="lg:col-span-9">
         <CardHeader>
           <div>
-            <CardTitle>{tab}</CardTitle>
-            <CardDescription>Preferencias de {tab.toLowerCase()}</CardDescription>
+            <CardTitle>{activeTabMeta.label}</CardTitle>
+            <CardDescription>
+              {tr(
+                `Preferencias de ${activeTabMeta.label.toLowerCase()}`,
+                `${activeTabMeta.label} preferences`,
+              )}
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="py-2">{contents[tab]}</CardContent>
         <div className="flex justify-end border-t border-[var(--line)] px-5 py-4">
           <Button type="button" onClick={handleSaveChanges}>
-            Guardar cambios
+            {tr('Guardar cambios', 'Save changes')}
           </Button>
         </div>
       </Card>
