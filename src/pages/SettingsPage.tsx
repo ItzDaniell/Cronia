@@ -58,7 +58,7 @@ export function SettingsPage({
   const contents: Record<string, ReactNode> = {
     General: (
       <>
-        <SettingRow title="Nombre de usuario" desc="Se muestra en el saludo del Dashboard y tu perfil local">
+        <SettingRow title="Nombre de usuario" desc="Se muestra en el saludo del Dashboard y tu perfil">
           <Input
             value={settings.userName}
             onChange={(e) => onUpdateSettings({ userName: e.target.value })}

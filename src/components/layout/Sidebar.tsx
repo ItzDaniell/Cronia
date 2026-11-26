@@ -205,7 +205,7 @@ export function Sidebar({
             {!collapsed && (
               <div className="min-w-0 flex-1 leading-tight">
                 <p className="m-0 truncate text-[13px] font-semibold text-[var(--text)]">{userName}</p>
-                <p className="m-0 text-[11px] text-[var(--muted)]">SQLite local</p>
+                <p className="m-0 text-[11px] text-[var(--muted)]">Espacio personal</p>
               </div>
             )}
           </button>

@@ -28,7 +28,7 @@ export const PAGE_DESCRIPTIONS: Record<ModuleName, string> = {
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {
-  userName: 'Usuario',
+  userName: '',
   dark: true,
   accent: 'green',
   launchOnStartup: true,

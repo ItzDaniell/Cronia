@@ -34,6 +34,7 @@ import {
 import type { TaskStatus } from './types';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
+import { StartupExperience } from './components/onboarding/StartupExperience';
 import { Toast } from './components/ui/Toast';
 import { Button } from './components/ui/button';
 import { TaskModal } from './components/modals/TaskModal';
@@ -54,6 +55,7 @@ export default function App() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [sessions, setSessions] = useState<FocusSession[]>([]);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   const [active, setActive] = useState<ModuleName>('Dashboard');
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -99,6 +101,7 @@ export default function App() {
         setEvents(data.events);
         setReminders(data.reminders);
         setSessions(data.sessions);
+        setHydrated(true);
 
         if (data.settings.autoBackup) {
           native
@@ -113,7 +116,10 @@ export default function App() {
       })
       .catch((err) => {
         console.error('Error al cargar datos locales:', err);
-        if (!cancelled) notify('No se pudieron cargar los datos locales');
+        if (!cancelled) {
+          setHydrated(true);
+          notify('No se pudieron cargar los datos locales');
+        }
       });
     persistence
       .listBackups()
@@ -783,6 +789,16 @@ export default function App() {
       )}
 
       <Toast message={toast} onClose={() => setToast('')} />
+
+      <StartupExperience
+        hydrated={hydrated}
+        settings={settings}
+        onPreviewSettings={updateSettings}
+        onFinishOnboarding={(userName) => {
+          updateSettings({ userName });
+          notify(`¡Bienvenido a Cronia, ${userName}!`);
+        }}
+      />
     </div>
   );
 }
