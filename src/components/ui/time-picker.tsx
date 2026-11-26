@@ -26,10 +26,10 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
   return (
     <Select value={value || '09:00'} onValueChange={onChange}>
       <SelectTrigger className={cn('h-9 w-full bg-[var(--surface-2)] text-[13px]', className)}>
-        <span className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <Clock className="h-3.5 w-3.5 text-[var(--muted)] shrink-0" />
           <SelectValue placeholder="Hora" />
-        </span>
+        </div>
       </SelectTrigger>
       <SelectContent className="max-h-60">
         {options.map((slot) => (

@@ -73,8 +73,8 @@ export function Header({
     : [];
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-[var(--line)] bg-[var(--bg)]/85 px-5 backdrop-blur-md lg:px-8">
-      <div className="flex items-center gap-3 min-w-0">
+    <header className="sticky top-0 z-30 grid h-14 grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-[var(--line)] bg-[var(--bg)]/85 px-5 backdrop-blur-md sm:grid-cols-[1fr_minmax(0,24rem)_1fr] lg:px-8">
+      <div className="flex items-center gap-3 min-w-0 justify-self-start">
         <Button
           type="button"
           variant="outline"
@@ -89,12 +89,12 @@ export function Header({
         <div className="hidden items-center gap-1.5 text-xs sm:flex">
           <span className="font-medium text-[var(--muted)]">Cronia</span>
           <ChevronRight className="h-3.5 w-3.5 text-[var(--muted)]/60" />
-          <span className="font-semibold text-[var(--text)]">{active}</span>
+          <span className="truncate font-semibold text-[var(--text)]">{active}</span>
         </div>
       </div>
 
-      {/* Centered Command Search */}
-      <div className="relative w-full max-w-sm">
+      {/* Locked Centered Command Search */}
+      <div className="relative w-full justify-self-center">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted)]" />
         <Input
           ref={searchRef}
@@ -159,7 +159,7 @@ export function Header({
       </div>
 
       {/* Right Quick Actions */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2 shrink-0 justify-self-end">
         <Button
           type="button"
           variant="ghost"

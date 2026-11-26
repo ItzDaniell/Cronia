@@ -49,6 +49,7 @@ interface TaskModalProps {
   projects: Project[];
   taskToEdit?: Task | null;
   initialStatus?: TaskStatus;
+  initialProject?: string;
   onClose: () => void;
   onCreate: (dto: CreateTaskDto) => void;
   onUpdate?: (dto: UpdateTaskDto) => void;
@@ -61,6 +62,7 @@ export function TaskModal({
   projects,
   taskToEdit = null,
   initialStatus = 'Pending',
+  initialProject,
   onClose,
   onCreate,
   onUpdate,
@@ -75,7 +77,7 @@ export function TaskModal({
   const [startDate, setStartDate] = useState<string>(taskToEdit?.startDate ?? toLocalDateKey());
   const [dueDate, setDueDate] = useState<string>(taskToEdit?.dueDate ?? toLocalDateKey());
   const [project, setProject] = useState(
-    taskToEdit?.project ?? projects.find((p) => !p.archived)?.name ?? 'Sin proyecto',
+    taskToEdit?.project ?? initialProject ?? projects.find((p) => !p.archived)?.name ?? 'Sin proyecto',
   );
   const [category, setCategory] = useState(taskToEdit?.category ?? 'Desarrollo');
   const [tags, setTags] = useState<string[]>(taskToEdit?.tags ?? []);

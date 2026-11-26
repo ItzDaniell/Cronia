@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Check, Download, Pause, Play, RotateCcw, Target, Timer, Zap } from 'lucide-react';
+import { Check, Download, Pause, Play, RotateCcw, SlidersHorizontal, Target, Timer, Zap } from 'lucide-react';
 import type { FocusSession, Task } from '@/types';
 import { isTaskCompleted } from '@/modules/tasks/domain/rules';
 import { downloadJson } from '@/utils/exportData';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -26,8 +28,20 @@ interface FocusPageProps {
   onNotify: (message: string) => void;
 }
 
+type FocusPhase = 'Enfoque' | 'Descanso corto' | 'Descanso largo' | 'Personalizado';
+
+const CUSTOM_TIME_KEY = 'cronia.focus.customMinutes';
 const RING_RADIUS = 112;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+function readCustomMinutes(): number {
+  try {
+    const raw = Number(window.localStorage.getItem(CUSTOM_TIME_KEY));
+    return Number.isFinite(raw) && raw >= 1 && raw <= 180 ? Math.round(raw) : 45;
+  } catch {
+    return 45;
+  }
+}
 
 export function FocusPage({
   tasks,
@@ -39,20 +53,44 @@ export function FocusPage({
   onCompleteSession,
   onNotify,
 }: FocusPageProps) {
-  const [phase, setPhase] = useState<'Enfoque' | 'Descanso corto' | 'Descanso largo'>('Enfoque');
+  const [phase, setPhase] = useState<FocusPhase>('Enfoque');
   const [selectedTask, setSelectedTask] = useState(
     tasks.find((t) => !isTaskCompleted(t))?.title ?? 'Sin tarea asociada',
   );
-  const [work, setWork] = useState(25);
+  const [customMinutes, setCustomMinutes] = useState<number>(readCustomMinutes);
+  const [draftCustom, setDraftCustom] = useState<string>(String(customMinutes));
   const [ambient, setAmbient] = useState('Sin sonido');
+  const [editOpen, setEditOpen] = useState(false);
 
-  const durations = { Enfoque: work, 'Descanso corto': 5, 'Descanso largo': 15 };
+  const durations: Record<FocusPhase, number> = {
+    Enfoque: 25,
+    'Descanso corto': 5,
+    'Descanso largo': 15,
+    Personalizado: customMinutes,
+  };
   const duration = durations[phase];
 
-  const choosePhase = (next: typeof phase) => {
+  const choosePhase = (next: FocusPhase) => {
     setPhase(next);
     onSetRunning(false);
     onSetSeconds(durations[next] * 60);
+  };
+
+  const handleSaveCustomTime = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clamped = Math.max(1, Math.min(180, Math.round(Number(draftCustom) || 1)));
+    setCustomMinutes(clamped);
+    setDraftCustom(String(clamped));
+    try {
+      window.localStorage.setItem(CUSTOM_TIME_KEY, String(clamped));
+    } catch {
+      // Ignore storage errors
+    }
+    setPhase('Personalizado');
+    onSetRunning(false);
+    onSetSeconds(clamped * 60);
+    setEditOpen(false);
+    onNotify(`Tiempo personalizado guardado (${clamped} min)`);
   };
 
   const minutes = String(Math.floor(seconds / 60)).padStart(2, '0');
@@ -76,33 +114,75 @@ export function FocusPage({
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       {/* Zen Precision Studio Timer */}
       <Card className="flex flex-col justify-between gap-7 p-6 sm:p-8 xl:col-span-8">
-        {/* Top status row */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${
-                running ? 'bg-[var(--accent)] animate-pulse' : 'bg-[var(--muted)]/50'
-              }`}
-            />
-            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
-              {running ? 'Sesión en curso' : 'Zen Studio · Listo'}
-            </span>
+        {/* Top status row + centered phase switcher */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex w-full items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  running ? 'bg-[var(--accent)] animate-pulse' : 'bg-[var(--muted)]/50'
+                }`}
+              />
+              <span className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
+                {running ? 'Sesión en curso' : 'Zen Studio · Listo'}
+              </span>
+            </div>
+
+            <Popover
+              open={editOpen}
+              onOpenChange={(open) => {
+                setEditOpen(open);
+                if (open) setDraftCustom(String(customMinutes));
+              }}
+            >
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Tiempo personalizado
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-4">
+                <form onSubmit={handleSaveCustomTime} className="space-y-3">
+                  <div>
+                    <p className="m-0 text-sm font-bold text-[var(--text)]">Tiempo personalizado</p>
+                    <p className="m-0 text-xs text-[var(--muted)]">
+                      Define tu duración favorita (1–180 min)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={180}
+                      value={draftCustom}
+                      onChange={(e) => setDraftCustom(e.target.value)}
+                      className="h-9 text-center font-mono-num"
+                      autoFocus
+                    />
+                    <span className="text-xs font-medium text-[var(--muted)]">min</span>
+                  </div>
+                  <Button type="submit" size="sm" className="w-full">
+                    Guardar tiempo
+                  </Button>
+                </form>
+              </PopoverContent>
+            </Popover>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1 rounded-lg bg-[var(--surface-2)] p-1">
-            {(Object.keys(durations) as (keyof typeof durations)[]).map((item) => (
+          <div className="inline-flex flex-wrap items-center justify-center gap-1 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-1">
+            {(Object.keys(durations) as FocusPhase[]).map((item) => (
               <button
                 type="button"
                 key={item}
                 onClick={() => choosePhase(item)}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-all ${
+                className={`inline-flex h-8.5 items-center gap-1.5 rounded-lg px-3.5 text-xs font-semibold transition-all ${
                   phase === item
                     ? 'bg-[var(--surface)] text-[var(--text)] shadow-xs'
                     : 'text-[var(--muted)] hover:text-[var(--text)]'
                 }`}
               >
                 {item}
-                <span className="font-mono-num text-[10.5px] opacity-70">{durations[item]}m</span>
+                <span className="font-mono-num text-[11px] opacity-75">{durations[item]}m</span>
               </button>
             ))}
           </div>
@@ -190,33 +270,46 @@ export function FocusPage({
           </div>
         </div>
 
-        {/* Bottom Task Dock */}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--line)] bg-[var(--surface-2)]/60 px-4 py-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]">
-              <Target className="h-4 w-4" />
+        {/* Bottom Controls & Task Dock */}
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)]/60 p-4">
+          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label className="flex h-4 items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                Sonido ambiente
+              </Label>
+              <Select value={ambient} onValueChange={setAmbient}>
+                <SelectTrigger className="bg-[var(--surface)]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sin sonido">Sin sonido</SelectItem>
+                  <SelectItem value="Lluvia suave">Lluvia suave</SelectItem>
+                  <SelectItem value="Café">Café</SelectItem>
+                  <SelectItem value="Ruido blanco">Ruido blanco</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="min-w-0">
-              <p className="m-0 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
-                TAREA ASOCIADA
-              </p>
-              <p className="m-0 truncate text-sm font-semibold text-[var(--text)]">{selectedTask}</p>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="flex h-4 items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                <Target className="h-3.5 w-3.5 text-[var(--accent)]" />
+                Tarea asociada
+              </Label>
+              <Select value={selectedTask} onValueChange={setSelectedTask}>
+                <SelectTrigger className="bg-[var(--surface)]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {tasks.map((t) => (
+                    <SelectItem key={t.id} value={t.title}>
+                      {t.title}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Sin tarea asociada">Sin tarea asociada</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-
-          <Select value={selectedTask} onValueChange={setSelectedTask}>
-            <SelectTrigger className="w-full sm:w-[240px] bg-[var(--surface)]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {tasks.map((t) => (
-                <SelectItem key={t.id} value={t.title}>
-                  {t.title}
-                </SelectItem>
-              ))}
-              <SelectItem value="Sin tarea asociada">Sin tarea asociada</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </Card>
 
@@ -263,51 +356,6 @@ export function FocusPage({
                   style={{ width: `${dailyGoalPct}%` }}
                 />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Configuración del ciclo</CardTitle>
-              <CardDescription>Duración y ambiente</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Enfoque</Label>
-              <Select
-                value={String(work)}
-                onValueChange={(val) => {
-                  const value = Number(val);
-                  setWork(value);
-                  if (phase === 'Enfoque') onSetSeconds(value * 60);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="25">25 minutos</SelectItem>
-                  <SelectItem value="50">50 minutos</SelectItem>
-                  <SelectItem value="90">90 minutos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Ambiente</Label>
-              <Select value={ambient} onValueChange={setAmbient}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sin sonido">Sin sonido</SelectItem>
-                  <SelectItem value="Lluvia suave">Lluvia suave</SelectItem>
-                  <SelectItem value="Café">Café</SelectItem>
-                  <SelectItem value="Ruido blanco">Ruido blanco</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </CardContent>
         </Card>

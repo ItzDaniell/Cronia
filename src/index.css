@@ -160,6 +160,42 @@ button { cursor: pointer; }
 .toast strong { color: var(--text); font-size: 13px; }
 .toast button { border: 0; background: none; color: var(--muted); }
 
+@keyframes cronia-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cronia-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes cronia-dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes cronia-dialog-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(6px) scale(0.97); }
+}
+@keyframes cronia-select-in {
+  from { opacity: 0; transform: translateY(-6px) scaleY(0.96); }
+  to { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+@keyframes cronia-select-out {
+  from { opacity: 1; transform: translateY(0) scaleY(1); }
+  to { opacity: 0; transform: translateY(-4px) scaleY(0.97); }
+}
+@keyframes cronia-popover-in {
+  from { opacity: 0; transform: scale(0.93) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes cronia-popover-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.95) translateY(-3px); }
+}
+
+.cronia-overlay[data-state='open'] { animation: cronia-overlay-in 180ms ease-out forwards; }
+.cronia-overlay[data-state='closed'] { animation: cronia-overlay-out 140ms ease-in forwards; }
+.cronia-dialog[data-state='open'] { animation: cronia-dialog-in 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.cronia-dialog[data-state='closed'] { animation: cronia-dialog-out 150ms ease-in forwards; }
+.cronia-select[data-state='open'] { transform-origin: top center; animation: cronia-select-in 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.cronia-select[data-state='closed'] { transform-origin: top center; animation: cronia-select-out 120ms ease-in forwards; }
+.cronia-popover[data-state='open'] { transform-origin: var(--radix-popover-content-transform-origin); animation: cronia-popover-in 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.cronia-popover[data-state='closed'] { transform-origin: var(--radix-popover-content-transform-origin); animation: cronia-popover-out 130ms ease-in forwards; }
+
 @media(prefers-reduced-motion:reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

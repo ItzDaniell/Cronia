@@ -18,6 +18,7 @@ interface DashboardPageProps {
   timerRunning: boolean;
   onToggleTask: (id: number) => void;
   onNavigate: (module: ModuleName) => void;
+  onOpenProject: (projectId: number) => void;
   onToggleTimer: () => void;
   onOpenNewTask: () => void;
 }
@@ -32,6 +33,7 @@ export function DashboardPage({
   timerRunning,
   onToggleTask,
   onNavigate,
+  onOpenProject,
   onToggleTimer,
   onOpenNewTask,
 }: DashboardPageProps) {
@@ -73,11 +75,11 @@ export function DashboardPage({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-4 py-2 text-right">
-              <span className="font-mono-num block text-xl font-bold leading-none text-[var(--text)]">
+            <div className="flex min-w-[96px] flex-col items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-4 py-2 text-center">
+              <span className="font-mono-num text-xl font-bold leading-none text-[var(--text)]">
                 {timeLabel}
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
                 Hora local
               </span>
             </div>
@@ -217,7 +219,7 @@ export function DashboardPage({
                     <button
                       type="button"
                       key={proj.id}
-                      onClick={() => onNavigate('Proyectos')}
+                      onClick={() => onOpenProject(proj.id)}
                       className="block w-full rounded-lg border border-[var(--line)] bg-[var(--surface-2)]/50 p-3 text-left transition-colors hover:border-[var(--accent)]/50"
                     >
                       <div className="flex items-center justify-between gap-2">

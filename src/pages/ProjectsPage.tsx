@@ -1,34 +1,54 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Archive, ArrowRight, Calendar, Folder, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
-import type { AccentTone, ModuleName, Project, Task } from '@/types';
+import type { AccentTone, FocusSession, Project, Task, TaskStatus } from '@/types';
 import { isTaskCompleted, isTaskDeleted } from '@/modules/tasks/domain/rules';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProjectModal } from '@/components/modals/ProjectModal';
+import { ProjectDetailView } from '@/pages/ProjectDetailView';
 
 interface ProjectsPageProps {
   projects: Project[];
   tasks: Task[];
+  sessions: FocusSession[];
   userInitials: string;
+  selectedProjectId: number | null;
+  onSelectProject: (id: number | null) => void;
   onSaveProject: (draft: { id?: number; name: string; desc: string; color: AccentTone; date: string }) => void;
   onToggleArchive: (id: number) => void;
   onDeleteProject: (id: number) => void;
-  onNavigate: (module: ModuleName) => void;
+  onNewTaskInProject: (projectName: string, initialStatus?: TaskStatus) => void;
+  onToggleTask: (id: number) => void;
+  onChangeStatus: (id: number, status: TaskStatus) => void;
+  onEditTask: (task: Task) => void;
+  onDeleteTask: (id: number) => void;
+  onToggleSubtask: (taskId: number, subtaskId: string) => void;
 }
 
 export function ProjectsPage({
   projects,
   tasks,
+  sessions,
   userInitials,
+  selectedProjectId,
+  onSelectProject,
   onSaveProject,
   onToggleArchive,
   onDeleteProject,
-  onNavigate,
+  onNewTaskInProject,
+  onToggleTask,
+  onChangeStatus,
+  onEditTask,
+  onDeleteTask,
+  onToggleSubtask,
 }: ProjectsPageProps) {
   const [tab, setTab] = useState<'Activos' | 'Archivados'>('Activos');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
+
+  const selectedProject =
+    selectedProjectId !== null ? projects.find((p) => p.id === selectedProjectId) ?? null : null;
 
   const activeTasks = tasks.filter((t) => !isTaskDeleted(t));
   const visible = projects.filter((project) => project.archived === (tab === 'Archivados'));
@@ -42,6 +62,46 @@ export function ProjectsPage({
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     return { done, total, pct };
   };
+
+  if (selectedProject) {
+    return (
+      <>
+        <ProjectDetailView
+          project={selectedProject}
+          tasks={tasks}
+          sessions={sessions}
+          onBack={() => onSelectProject(null)}
+          onEditProject={(proj) => {
+            setEditing(proj);
+            setModalOpen(true);
+          }}
+          onToggleArchive={onToggleArchive}
+          onDeleteProject={onDeleteProject}
+          onNewTaskInProject={onNewTaskInProject}
+          onToggleTask={onToggleTask}
+          onChangeStatus={onChangeStatus}
+          onEditTask={onEditTask}
+          onDeleteTask={onDeleteTask}
+          onToggleSubtask={onToggleSubtask}
+        />
+
+        {modalOpen && (
+          <ProjectModal
+            projectToEdit={editing}
+            onClose={() => {
+              setModalOpen(false);
+              setEditing(null);
+            }}
+            onSave={(draft) => {
+              onSaveProject(draft);
+              setModalOpen(false);
+              setEditing(null);
+            }}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -62,7 +122,7 @@ export function ProjectsPage({
                 }`}
               >
                 {item}
-                <span className="text-xs opacity-80">{count}</span>
+                <span className="font-mono-num text-xs opacity-80">{count}</span>
               </button>
             );
           })}
@@ -90,12 +150,18 @@ export function ProjectsPage({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.18, delay: Math.min(idx * 0.03, 0.15) }}
             >
-              <Card className="flex h-full flex-col p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--accent)]/50">
+              <Card
+                onClick={() => onSelectProject(project.id)}
+                className="flex h-full cursor-pointer flex-col p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--accent)]/60"
+              >
                 <div className="flex items-center justify-between">
                   <div className={`grid h-11 w-11 place-items-center rounded-xl text-white ${project.color}`}>
                     <Folder className="h-5 w-5" />
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div
+                    className="flex items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Button
                       type="button"
                       variant="ghost"
@@ -136,7 +202,7 @@ export function ProjectsPage({
                   </div>
                 </div>
 
-                <h3 className="mb-1 mt-4 font-['Manrope'] text-lg font-bold text-[var(--text)]">
+                <h3 className="font-display mb-1 mt-4 text-lg font-bold text-[var(--text)]">
                   {project.name}
                 </h3>
                 <p className="m-0 mb-5 flex-1 text-xs leading-relaxed text-[var(--muted)]">
@@ -147,7 +213,7 @@ export function ProjectsPage({
                   <span>
                     {done} de {total} tareas
                   </span>
-                  <strong className="text-[var(--text)]">{pct}%</strong>
+                  <strong className="font-mono-num text-[var(--text)]">{pct}%</strong>
                 </div>
                 <div className="my-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
                   <div
@@ -157,23 +223,16 @@ export function ProjectsPage({
                 </div>
 
                 <footer className="mt-3 flex items-center gap-2 border-t border-[var(--line)] pt-3.5">
-                  <span className="grid h-7 w-7 place-items-center rounded-full bg-amber-200 text-[11px] font-extrabold text-amber-950">
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--accent-soft)] text-[11px] font-bold text-[var(--accent)]">
                     {userInitials}
                   </span>
                   <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-[var(--muted)]">
                     <Calendar className="h-3.5 w-3.5" />
                     {project.date}
                   </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => onNavigate('Tareas')}
-                    aria-label={`Abrir tareas de ${project.name}`}
-                  >
+                  <span className="grid h-7 w-7 place-items-center rounded-md text-[var(--muted)]">
                     <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  </span>
                 </footer>
               </Card>
             </motion.div>
@@ -187,7 +246,7 @@ export function ProjectsPage({
               setEditing(null);
               setModalOpen(true);
             }}
-            className="flex min-h-[230px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--line)] bg-transparent p-6 text-center transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/50"
+            className="flex min-h-[230px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--line)] bg-transparent p-6 text-center transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/40"
           >
             <div className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
               <Plus className="h-5 w-5" />

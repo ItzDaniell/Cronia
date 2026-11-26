@@ -16,7 +16,7 @@ const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        'z-[140] w-auto rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-[var(--text)] shadow-2xl outline-none',
+        'cronia-popover z-[140] w-auto rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-[var(--text)] shadow-2xl outline-none',
         className,
       )}
       {...props}

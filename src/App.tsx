@@ -50,11 +50,13 @@ export default function App() {
   const [backups, setBackups] = useState<BackupInfo[]>([]);
 
   const [active, setActive] = useState<ModuleName>('Dashboard');
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [modalInitialStatus, setModalInitialStatus] = useState<TaskStatus>('Pending');
+  const [modalInitialProject, setModalInitialProject] = useState<string | undefined>(undefined);
   const [toast, setToast] = useState('');
   const [timerRunning, setTimerRunning] = useState(false);
   const [seconds, setSeconds] = useState(25 * 60);
@@ -140,6 +142,13 @@ export default function App() {
 
   const openModule = (name: ModuleName) => {
     setActive(name);
+    if (name === 'Proyectos') setSelectedProjectId(null);
+    setMenuOpen(false);
+  };
+
+  const openProjectDetail = (projectId: number) => {
+    setSelectedProjectId(projectId);
+    setActive('Proyectos');
     setMenuOpen(false);
   };
 
@@ -149,15 +158,17 @@ export default function App() {
     persistAsync(persistence.saveSettings(next));
   };
 
-  const openNewTaskModal = (initialStatus: TaskStatus = 'Pending') => {
+  const openNewTaskModal = (initialStatus: TaskStatus = 'Pending', initialProject?: string) => {
     setEditingTask(null);
     setModalInitialStatus(initialStatus);
+    setModalInitialProject(initialProject);
     setModalOpen(true);
   };
 
   const openEditTaskModal = (task: Task) => {
     setEditingTask(task);
     setModalInitialStatus(task.status);
+    setModalInitialProject(undefined);
     setModalOpen(true);
   };
 
@@ -463,6 +474,7 @@ export default function App() {
             timerRunning={timerRunning}
             onToggleTask={handleToggleTask}
             onNavigate={openModule}
+            onOpenProject={openProjectDetail}
             onToggleTimer={() => setTimerRunning((prev) => !prev)}
             onOpenNewTask={() => openNewTaskModal('Pending')}
           />
@@ -486,11 +498,21 @@ export default function App() {
           <ProjectsPage
             projects={projects}
             tasks={activeTasks}
+            sessions={sessions}
             userInitials={userInitials}
+            selectedProjectId={selectedProjectId}
+            onSelectProject={setSelectedProjectId}
             onSaveProject={handleSaveProject}
             onToggleArchive={handleToggleArchiveProject}
             onDeleteProject={handleDeleteProject}
-            onNavigate={openModule}
+            onNewTaskInProject={(projectName, status = 'Pending') =>
+              openNewTaskModal(status, projectName)
+            }
+            onToggleTask={handleToggleTask}
+            onChangeStatus={handleChangeTaskStatus}
+            onEditTask={openEditTaskModal}
+            onDeleteTask={handleSoftDeleteTask}
+            onToggleSubtask={handleToggleSubtask}
           />
         );
       case 'Calendario':
@@ -562,7 +584,7 @@ export default function App() {
           />
         );
     }
-  }, [active, activeTasks, backups, events, now, projects, reminders, seconds, sessions, settings, tasks, timerRunning, userInitials, weekDays]);
+  }, [active, activeTasks, backups, events, now, projects, reminders, seconds, selectedProjectId, sessions, settings, tasks, timerRunning, userInitials, weekDays]);
 
   const timerLabel = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
@@ -644,9 +666,11 @@ export default function App() {
           projects={projects}
           taskToEdit={editingTask}
           initialStatus={modalInitialStatus}
+          initialProject={modalInitialProject}
           onClose={() => {
             setModalOpen(false);
             setEditingTask(null);
+            setModalInitialProject(undefined);
           }}
           onCreate={handleCreateTask}
           onUpdate={handleUpdateTask}
