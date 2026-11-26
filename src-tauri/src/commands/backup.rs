@@ -31,3 +31,12 @@ pub fn restore_backup(
   db::backup::restore_backup(&mut conn, &state.backups_dir, &file_name)?;
   db::load_all_data(&conn, &fallback_settings)
 }
+
+#[tauri::command]
+pub fn run_auto_backup_if_needed(state: State<'_, DbState>) -> Result<Option<BackupInfo>, String> {
+  let conn = state
+    .conn
+    .lock()
+    .map_err(|_| "Error al adquirir bloqueo de la base de datos".to_string())?;
+  db::backup::maybe_auto_backup(&conn, &state.backups_dir, 7)
+}

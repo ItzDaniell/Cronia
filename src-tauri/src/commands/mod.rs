@@ -5,4 +5,5 @@ pub mod projects;
 pub mod reminders;
 pub mod sessions;
 pub mod settings;
+pub mod system;
 pub mod tasks;

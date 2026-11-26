@@ -20,6 +20,7 @@ import {
   PAGE_DESCRIPTIONS,
 } from './data/initialData';
 import { persistence } from './services/persistence';
+import { getReminderTriggerDate, native } from './services/native';
 import { taskService, TaskValidationError } from './modules/tasks/application/taskService';
 import type { CreateTaskDto, UpdateTaskDto } from './modules/tasks/application/dtos';
 import { isTaskCompleted, isTaskDeleted, toLocalDateKey } from './modules/tasks/domain/rules';
@@ -72,6 +73,7 @@ export default function App() {
   const [now, setNow] = useState(new Date());
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const firedRemindersRef = useRef<Set<string>>(new Set());
 
   const notify = (message: string) => {
     setToast(message);
@@ -97,6 +99,17 @@ export default function App() {
         setEvents(data.events);
         setReminders(data.reminders);
         setSessions(data.sessions);
+
+        if (data.settings.autoBackup) {
+          native
+            .runAutoBackupIfNeeded()
+            .then((created) => {
+              if (created && !cancelled) {
+                setBackups((prev) => [created, ...prev.filter((b) => b.fileName !== created.fileName)]);
+              }
+            })
+            .catch(() => {});
+        }
       })
       .catch((err) => {
         console.error('Error al cargar datos locales:', err);
@@ -144,19 +157,61 @@ export default function App() {
     }
     if (focusCountsAsWork) {
       handleCompleteSession(focusTaskTitle, focusDurationMinutes);
+      if (settings.nativeNotifications) {
+        native
+          .sendNotification(
+            'Cronia · Sesión completada',
+            `Completaste ${focusDurationMinutes} min en "${focusTaskTitle}".`,
+          )
+          .catch(() => {});
+      }
     } else {
       notify('¡Descanso finalizado!');
+      if (settings.nativeNotifications) {
+        native
+          .sendNotification('Cronia · Descanso finalizado', 'Es hora de retomar tu próximo bloque.')
+          .catch(() => {});
+      }
     }
     setSeconds(focusDurationMinutes * 60);
   }, [
     seconds,
     timerRunning,
     settings.soundEnabled,
+    settings.nativeNotifications,
     alertTone,
     focusCountsAsWork,
     focusTaskTitle,
     focusDurationMinutes,
   ]);
+
+  // Scheduler de recordatorios activos (verifica cada 30 segundos)
+  useEffect(() => {
+    const checkReminders = () => {
+      const currentMs = Date.now();
+      for (const r of reminders) {
+        if (!r.enabled) continue;
+        const triggerDate = getReminderTriggerDate(r);
+        if (!triggerDate) continue;
+        const diffMs = currentMs - triggerDate.getTime();
+        const key = `${r.id}:${r.date}:${r.time}:${r.before}`;
+        if (diffMs >= 0 && diffMs < 60_000 && !firedRemindersRef.current.has(key)) {
+          firedRemindersRef.current.add(key);
+          notify(`Recordatorio: ${r.title}`);
+          if (settings.soundEnabled) playAlertTone(alertTone);
+          if (settings.nativeNotifications) {
+            native
+              .sendNotification('Cronia · Recordatorio', `${r.title} (${r.time})`)
+              .catch(() => {});
+          }
+        }
+      }
+    };
+
+    checkReminders();
+    const id = window.setInterval(checkReminders, 30_000);
+    return () => window.clearInterval(id);
+  }, [reminders, settings.nativeNotifications, settings.soundEnabled, alertTone]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -191,6 +246,13 @@ export default function App() {
     const next = { ...settings, ...partial };
     setSettings(next);
     persistAsync(persistence.saveSettings(next));
+
+    if (partial.launchOnStartup !== undefined) {
+      native.setAutostart(next.launchOnStartup).catch((err) => {
+        console.error('Error al configurar inicio con Windows:', err);
+        notify('No se pudo actualizar el inicio con Windows');
+      });
+    }
   };
 
   const openNewTaskModal = (initialStatus: TaskStatus = 'Pending', initialProject?: string) => {

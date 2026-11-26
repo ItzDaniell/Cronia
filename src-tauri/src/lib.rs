@@ -1,13 +1,20 @@
 mod commands;
 mod db;
+mod tray;
 
 use db::DbState;
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, WindowEvent};
+use tauri_plugin_autostart::MacosLauncher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_notification::init())
+    .plugin(tauri_plugin_autostart::init(
+      MacosLauncher::LaunchAgent,
+      None,
+    ))
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -30,7 +37,23 @@ pub fn run() {
         backups_dir,
       });
 
+      tray::setup_tray(app.handle())?;
+
       Ok(())
+    })
+    .on_window_event(|window, event| {
+      if let WindowEvent::CloseRequested { api, .. } = event {
+        let should_minimize = window
+          .try_state::<DbState>()
+          .and_then(|state| state.conn.lock().ok().and_then(|c| db::settings::load(&c).ok().flatten()))
+          .map(|s| s.minimize_to_tray)
+          .unwrap_or(false);
+
+        if should_minimize {
+          api.prevent_close();
+          let _ = window.hide();
+        }
+      }
     })
     .invoke_handler(tauri::generate_handler![
       commands::app::load_app_data,
@@ -50,6 +73,10 @@ pub fn run() {
       commands::backup::create_backup,
       commands::backup::list_backups,
       commands::backup::restore_backup,
+      commands::backup::run_auto_backup_if_needed,
+      commands::system::send_native_notification,
+      commands::system::set_autostart,
+      commands::system::get_autostart,
     ])
     .run(tauri::generate_context!())
     .expect("error while building tauri application");

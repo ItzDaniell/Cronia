@@ -119,3 +119,39 @@ pub fn restore_backup(
   super::schema::init(dst_conn)?;
   Ok(())
 }
+
+/// Crea una copia automática si no existe ninguna o si pasaron más de 24h desde la última,
+/// y conserva solo los últimos `max_keep` respaldos para no llenar el disco.
+pub fn maybe_auto_backup(
+  conn: &Connection,
+  backups_dir: &Path,
+  max_keep: usize,
+) -> Result<Option<BackupInfo>, String> {
+  let existing = list_backups(backups_dir)?;
+  let now = unix_secs(SystemTime::now());
+  let one_day_secs = 24 * 60 * 60;
+
+  let should_backup = match existing.first() {
+    None => true,
+    Some(latest) => {
+      let latest_ts = latest.created_at.parse::<u64>().unwrap_or(0);
+      now.saturating_sub(latest_ts) >= one_day_secs
+    }
+  };
+
+  if !should_backup {
+    return Ok(None);
+  }
+
+  let created = create_backup(conn, backups_dir)?;
+
+  // Rotación: eliminar copias más antiguas que `max_keep`
+  let updated_list = list_backups(backups_dir)?;
+  if updated_list.len() > max_keep {
+    for old in &updated_list[max_keep..] {
+      let _ = fs::remove_file(&old.path);
+    }
+  }
+
+  Ok(Some(created))
+}
