@@ -99,39 +99,19 @@ export function StartupExperience({
                 transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                 className="relative flex flex-col items-center text-center"
               >
-                {/* Animated Cronia Clock-Orbit Logo */}
+                {/* Animated Cronia Logo */}
                 <motion.div
-                  initial={{ scale: 0.78, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                  className="grid h-20 w-20 place-items-center rounded-2xl bg-[var(--accent)] text-white shadow-2xl"
+                  initial={{ scale: 0.78, opacity: 0, rotate: -6 }}
+                  animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                  className="h-20 w-20 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10"
                   style={{ boxShadow: '0 20px 50px -12px var(--accent)' }}
                 >
-                  <svg
-                    width="42"
-                    height="42"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.1"
-                  >
-                    <motion.circle
-                      cx="12"
-                      cy="12"
-                      r="9"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 0.7, ease: 'easeInOut' }}
-                    />
-                    <motion.path
-                      d="M12 7v5l3.2 2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 0.5, delay: 0.35, ease: 'easeOut' }}
-                    />
-                  </svg>
+                  <img
+                    src="/cronia-logo.png"
+                    alt="Cronia"
+                    className="h-full w-full object-cover"
+                  />
                 </motion.div>
 
                 <motion.h1

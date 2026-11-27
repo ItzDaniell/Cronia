@@ -1,9 +1,9 @@
 [package]
-name = "app"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
+name = "cronia"
+version = "1.0.0"
+description = "Cronia - Aplicacion de productividad personal"
+authors = ["Cronia"]
+license = "MIT"
 repository = ""
 edition = "2024"
 rust-version = "1.90"
@@ -11,7 +11,7 @@ rust-version = "1.90"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "app_lib"
+name = "cronia_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -26,3 +26,10 @@ tauri-plugin-log = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-autostart = "2"
 rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
